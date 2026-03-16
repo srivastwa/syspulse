@@ -75,6 +75,7 @@ class SoftwareItem(BaseModel):
     install_date: Optional[str] = None
     install_location: Optional[str] = None
     product_key: Optional[str] = None
+    source: Optional[str] = None  # registry, appx, electron-local, winget, etc.
 
 
 class NetworkAdapter(BaseModel):
