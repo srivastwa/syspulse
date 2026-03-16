@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>eCISO SysPulse — {{ system.get('hostname', 'Report') }}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header>
+  <div class="logo">e<span>CISO</span> SysPulse</div>
+</header>
+
+<main>
+
+  <a class="back-link" href="/">← All Reports</a>
+
+  <!-- Score hero -->
+  {% set tier_lc = score.get('tier','unknown')|lower %}
+  <div class="card" style="margin-bottom:2rem;">
+    <div class="score-hero">
+      <div class="score-ring {{ tier_lc }}">
+        <div class="score-num">{{ "%.1f"|format(score.get('overall', 0)) }}</div>
+        <div class="score-label">/ 10</div>
+      </div>
+      <div class="score-meta">
+        <h2>{{ system.get('hostname', 'Unknown Host') }}</h2>
+        <div class="host-os">
+          {{ system.get('os_name', '') }}
+          {% if system.get('os_version') %} · {{ system['os_version'] }}{% endif %}
+          {% if system.get('domain_joined') %} · Domain-joined{% endif %}
+          {% if system.get('azure_ad_joined') %} · Azure AD{% endif %}
+        </div>
+        <div class="dates">
+          Assessed: {{ system.get('assessed_at', meta['assessed_at'])[:16].replace('T',' ') }} UTC
+          &nbsp;·&nbsp;
+          Submitted: {{ meta['submitted_at'][:16].replace('T',' ') }} UTC
+          &nbsp;·&nbsp;
+          <span class="badge badge-{{ tier_lc }}">{{ score.get('tier','UNKNOWN') }}</span>
+        </div>
+      </div>
+
+      <div style="margin-left:auto;display:flex;gap:.6rem;align-items:center;">
+        <a href="/api/reports/{{ meta['id'] }}/json" class="badge badge-info"
+           style="padding:.4rem .9rem;font-size:.78rem;">↓ JSON</a>
+        <form method="post" action="/report/{{ meta['id'] }}/delete"
+              onsubmit="return confirm('Delete this report?')" style="margin:0;">
+          <button class="btn-delete" type="submit">Delete</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Counts -->
+    {% set counts = score.get('counts', {}) %}
+    <div class="counts-row">
+      <div class="count-item critical">
+        <div class="num">{{ counts.get('critical', 0) }}</div>
+        <div class="lbl">Critical</div>
+      </div>
+      <div class="count-item high">
+        <div class="num">{{ counts.get('high', 0) }}</div>
+        <div class="lbl">High</div>
+      </div>
+      <div class="count-item medium">
+        <div class="num">{{ counts.get('medium', 0) }}</div>
+        <div class="lbl">Medium</div>
+      </div>
+      <div class="count-item low">
+        <div class="num">{{ counts.get('low', 0) }}</div>
+        <div class="lbl">Low</div>
+      </div>
+      {% if counts.get('info') %}
+      <div class="count-item" style="color:var(--info);">
+        <div class="num" style="color:var(--info);">{{ counts['info'] }}</div>
+        <div class="lbl">Info</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Ranked Findings -->
+  {% if matches %}
+  <div class="card" style="margin-bottom:2rem;">
+    <div class="card-header">Ranked Findings</div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Finding</th>
+          <th>Severity</th>
+          <th>Score</th>
+          <th>CVSS</th>
+          <th>Tags</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in matches %}
+        {% set sev_lc = m.get('severity','info')|lower %}
+        <tr>
+          <td style="color:var(--muted);">{{ loop.index }}</td>
+          <td>
+            <div style="font-weight:600;">{{ m.get('finding',{}).get('title', m.get('rule_id','')) }}</div>
+            <div style="color:var(--muted);font-size:.78rem;">{{ m.get('rule_id','') }}</div>
+          </td>
+          <td><span class="badge badge-{{ sev_lc }}">{{ m.get('severity','INFO') }}</span></td>
+          <td style="font-weight:700;color:
+            {%- if sev_lc == 'critical' %}var(--critical)
+            {%- elif sev_lc == 'high' %}var(--high)
+            {%- elif sev_lc == 'medium' %}var(--medium)
+            {%- else %}var(--low){% endif %};">
+            {{ "%.1f"|format(m.get('final_score', m.get('base_score', 0))) }}
+          </td>
+          <td style="font-size:.75rem;color:var(--muted);font-family:monospace;">
+            {{ m.get('cvss_vector', '—') }}
+          </td>
+          <td>
+            {% for tag in m.get('compliance_tags', [])[:3] %}
+              <span class="tag">{{ tag }}</span>
+            {% endfor %}
+            {% if m.get('compliance_tags', [])|length > 3 %}
+              <span class="tag">+{{ m['compliance_tags']|length - 3 }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if m.get('interaction_boosts') %}
+              <span title="{{ m['interaction_boosts']|join(', ') }}" style="cursor:help;color:var(--high);">⚡</span>
+            {% endif %}
+          </td>
+        </tr>
+        <!-- Expandable detail row -->
+        <tr>
+          <td colspan="7" style="padding:0;background:var(--bg);">
+            <details>
+              <summary style="padding:.5rem 1.2rem;font-size:.8rem;font-weight:400;color:var(--muted);">
+                Details &amp; Remediation
+              </summary>
+              <div class="detail-body">
+                {% set f = m.get('finding', {}) %}
+                {% if f.get('description') %}
+                  <p style="color:var(--muted);margin-bottom:.6rem;">{{ f['description'] }}</p>
+                {% endif %}
+                {% if f.get('affected_resources') %}
+                  <p style="margin-bottom:.4rem;font-size:.8rem;">
+                    <strong>Affected:</strong>
+                    {% for r in f['affected_resources'] %}
+                      <span class="tag">{{ r }}</span>
+                    {% endfor %}
+                  </p>
+                {% endif %}
+                {% set steps = m.get('remediation_steps') or f.get('remediation_steps', []) %}
+                {% if steps %}
+                  <ul class="rem-list" style="margin-top:.6rem;">
+                    {% for step in steps %}
+                    <li>
+                      <span class="rem-num">{{ loop.index }}</span>
+                      <span>{{ step }}</span>
+                    </li>
+                    {% endfor %}
+                  </ul>
+                {% endif %}
+                {% if m.get('interaction_boosts') %}
+                  <p style="margin-top:.6rem;font-size:.78rem;color:var(--high);">
+                    ⚡ Interaction boosts: {{ m['interaction_boosts']|join(' · ') }}
+                  </p>
+                {% endif %}
+              </div>
+            </details>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- Compliance -->
+  {% if compliance %}
+  <div class="card" style="margin-bottom:2rem;">
+    <div class="card-header">Compliance Coverage</div>
+    <div class="compliance-grid">
+      {% for fw in compliance %}
+      {% set pct = (fw.get('pass_rate', 0) * 100)|int %}
+      <div class="framework-card">
+        <div class="fw-name">{{ fw.get('framework_name', fw.get('framework', '')) }}</div>
+        <div class="fw-bar-wrap">
+          <div class="fw-bar" style="width:{{ pct }}%;
+            background:{% if pct >= 80 %}var(--low){% elif pct >= 60 %}var(--medium){% else %}var(--critical){% endif %};">
+          </div>
+        </div>
+        <div class="fw-meta">{{ pct }}% — {{ fw.get('passed', 0) }} / {{ fw.get('total', 0) }} controls passed</div>
+
+        <!-- Control detail -->
+        {% if fw.get('results') %}
+        <details style="margin-top:.6rem;border:none;">
+          <summary style="font-size:.75rem;padding:.3rem 0;color:var(--muted);">Show controls</summary>
+          <div style="margin-top:.4rem;">
+            {% for ctrl in fw['results'] %}
+            {% set status = ctrl.get('status', 'not_covered') %}
+            <div style="display:flex;align-items:center;gap:.5rem;padding:.25rem 0;border-bottom:1px solid var(--border);font-size:.78rem;">
+              <span style="color:{% if status == 'pass' %}var(--low){% elif status == 'fail' %}var(--critical){% else %}var(--muted){% endif %};">
+                {% if status == 'pass' %}✓{% elif status == 'fail' %}✗{% else %}—{% endif %}
+              </span>
+              <span style="color:var(--muted);min-width:90px;">{{ ctrl.get('control_id', '') }}</span>
+              <span>{{ ctrl.get('control_name', ctrl.get('name', '')) }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </details>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- System Profile -->
+  <div class="card">
+    <div class="card-header">System Profile</div>
+    <div class="detail-body" style="padding:1rem 1.4rem;">
+      <table style="width:auto;min-width:400px;">
+        <tbody>
+          {% for key, val in system.items() %}
+          {% if val is not none and val != '' %}
+          <tr>
+            <td style="color:var(--muted);padding:.35rem .8rem .35rem 0;border:none;font-size:.82rem;width:180px;">
+              {{ key.replace('_',' ')|title }}
+            </td>
+            <td style="border:none;font-size:.82rem;">
+              {% if val is sameas true %}
+                <span style="color:var(--low);">Yes</span>
+              {% elif val is sameas false %}
+                <span style="color:var(--critical);">No</span>
+              {% else %}
+                {{ val }}
+              {% endif %}
+            </td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+</body>
+</html>

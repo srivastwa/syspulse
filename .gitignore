@@ -5,7 +5,10 @@ dist/
 build/
 .env
 *.exe
-report.html
+# Ignore generated standalone HTML reports but not server templates
+/report.html
+eciso-syspulse-*.html
+!server/templates/report.html
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
