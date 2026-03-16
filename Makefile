@@ -1,4 +1,4 @@
-.PHONY: install test lint fmt run dry-run
+.PHONY: install test lint fmt run dry-run serve serve-install
 
 install:
 	pip install -e ".[dev]"
@@ -18,3 +18,9 @@ dry-run:
 
 run:
 	python3 -m syspulse
+
+serve-install:
+	pip install -r server/requirements.txt
+
+serve:
+	cd server && uvicorn main:app --reload --port 8000

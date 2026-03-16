@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     check_timeout: int = 30          # seconds per PowerShell script
     max_interaction_boost: float = 2.0
     top_findings_for_score: int = 10  # use top-N findings for composite score
+    eciso_server_url: str = "http://localhost:8000"  # eCISO web server URL
 
 
 settings = Settings()
