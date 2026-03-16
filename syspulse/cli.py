@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import platform
 import sys
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Optional
@@ -60,8 +62,9 @@ def scan(
     elif format == OutputFormat.html:
         from syspulse.output.html_report import export_html
         content = export_html(report)
-        if output:
-            output.write_text(content, encoding="utf-8")
-            typer.echo(f"Report written to {output}")
-        else:
-            typer.echo(content)
+        if output is None:
+            hostname = platform.node().split(".")[0].lower()
+            date_str = datetime.now().strftime("%d%m%y")
+            output = Path(f"eciso-syspulse-{hostname}-{date_str}.html")
+        output.write_text(content, encoding="utf-8")
+        typer.echo(f"Report written to {output}")
