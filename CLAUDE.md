@@ -139,13 +139,145 @@ The system Python is 3.8.3. Keep these in mind:
 - `from __future__ import annotations` is at the top of every module — this is required
 - Don't use `match` statements (3.10+), `ExceptionGroup` (3.11+), or `tomllib` (3.11+)
 
-## What's NOT Built Yet (Roadmap)
+## Sprint & Phase Plan
 
-- `syspulse/compliance/` — loader and mapper modules are stubs; frameworks JSON not populated
-- `checks/linux/` and `checks/darwin/` — empty packages, no check modules yet
-- PyInstaller build script
-- Historical trending / assessment comparison
-- GitHub Actions CI
+### Status Legend
+- ✅ Complete
+- 🔲 Not started
+
+---
+
+### Phase 1 — Windows
+
+#### Sprint 1 — Foundation ✅
+All core scaffolding. Must be complete before any check or engine work.
+
+| Task | File | Status |
+|------|------|--------|
+| `pyproject.toml` with all dependencies | `pyproject.toml` | ✅ |
+| Pydantic models: Finding, Evidence, Severity, CheckStatus | `syspulse/models/finding.py` | ✅ |
+| Pydantic models: RuleMatch, SystemScore | `syspulse/models/risk.py` | ✅ |
+| Pydantic models: AssessmentReport, SystemProfile | `syspulse/models/report.py` | ✅ |
+| Pydantic models: ComplianceControl, MappingResult | `syspulse/models/compliance.py` | ✅ |
+| CheckBase ABC + CheckMeta dataclass | `syspulse/checks/base.py` | ✅ |
+| importlib auto-discovery registry | `syspulse/checks/registry.py` | ✅ |
+| PowerShell subprocess runner (UTF-8, timeout, stderr) | `syspulse/utils/subprocess_runner.py` | ✅ |
+| Platform detection + admin check | `syspulse/utils/platform_detect.py` | ✅ |
+| Structured logging (structlog) | `syspulse/utils/logging.py` | ✅ |
+| Settings (pydantic-settings) | `syspulse/config.py` | ✅ |
+| Orchestration runner | `syspulse/runner.py` | ✅ |
+| Typer CLI with `--dry-run`, `--format`, `--output`, `--verbose` | `syspulse/cli.py` | ✅ |
+| **Milestone:** `python -m syspulse --dry-run` exits 0 | — | ✅ |
+
+#### Sprint 2 — Windows Check Modules ✅
+8 check modules + matching PowerShell scripts. Each is independent.
+
+| Check | Python Module | PS Script | Status |
+|-------|--------------|-----------|--------|
+| Firewall profiles (Domain/Private/Public) | `checks/windows/firewall.py` | `get_firewall_profiles.ps1` | ✅ |
+| Antivirus (Security Center WMI, def age) | `checks/windows/antivirus.py` | `get_av_status.ps1` | ✅ |
+| BitLocker per-drive encryption | `checks/windows/encryption.py` | `get_bitlocker_status.ps1` | ✅ |
+| Windows Update / pending patches | `checks/windows/patching.py` | `get_update_status.ps1` | ✅ |
+| Local admins + built-in Administrator | `checks/windows/privileges.py` | `get_local_admins.ps1` | ✅ |
+| Misconfigs bundle (SMBv1, Guest, AutoRun, RDP, shares, Secure Boot, password policy) | `checks/windows/misconfigurations.py` | `get_misconfigurations.ps1` | ✅ |
+| Backup (VSS, File History, schtasks, third-party) | `checks/windows/backup.py` | `get_backup_status.ps1` | ✅ |
+| MFA (AAD join, WHFB, no-password accounts, pwd-never-expires) | `checks/windows/mfa.py` | `get_mfa_status.ps1` | ✅ |
+| **Milestone:** `python -m syspulse --format json` dumps real findings | — | ✅ |
+
+#### Sprint 3 — Rule Engine ✅
+Deterministic rule-based scoring. No AI.
+
+| Task | File | Status |
+|------|------|--------|
+| YAML rule schema + Pydantic validation | `engine/rule_loader.py` | ✅ |
+| Finding → rule matching (first-match-wins) | `engine/evaluator.py` | ✅ |
+| Cross-finding interaction amplification table | `engine/interaction_matrix.py` | ✅ |
+| Per-finding score: base × weight × context multiplier | `engine/scorer.py` | ✅ |
+| Composite system score (top-10 weighted avg, capped 10.0) | `engine/scorer.py` | ✅ |
+| Rule YAML: encryption | `engine/rules/encryption.yaml` | ✅ |
+| Rule YAML: antivirus | `engine/rules/antivirus.yaml` | ✅ |
+| Rule YAML: firewall | `engine/rules/firewall.yaml` | ✅ |
+| Rule YAML: patching | `engine/rules/patching.yaml` | ✅ |
+| Rule YAML: privileges | `engine/rules/privileges.yaml` | ✅ |
+| Rule YAML: backup | `engine/rules/backup.yaml` | ✅ |
+| Rule YAML: mfa | `engine/rules/mfa.yaml` | ✅ |
+| Rule YAML: misconfigurations | `engine/rules/misconfigurations.yaml` | ✅ |
+| **Milestone:** findings scored with CVSS vectors and interaction boosts | — | ✅ |
+
+#### Sprint 4 — Output Layer ✅
+
+| Task | File | Status |
+|------|------|--------|
+| Rich terminal dashboard (summary, findings table, compliance, remediation) | `output/terminal.py` | ✅ |
+| JSON export (schema-versioned) | `output/json_export.py` | ✅ |
+| Jinja2 HTML report (self-contained, no CDN) | `output/html_report.py` + `templates/report.html.j2` | ✅ |
+| **Milestone:** all three output formats working end-to-end | — | ✅ |
+
+#### Sprint 5 — Compliance Mapping 🔲
+Wire findings to CIS Benchmark, NIST 800-53, ISO 27001 controls.
+
+| Task | File | Status |
+|------|------|--------|
+| CIS Windows Benchmark control definitions | `compliance/frameworks/cis_windows.json` | 🔲 |
+| NIST 800-53 relevant control subset | `compliance/frameworks/nist_800_53.json` | 🔲 |
+| ISO 27001 Annex A controls | `compliance/frameworks/iso_27001.json` | 🔲 |
+| Framework loader | `compliance/loader.py` | 🔲 |
+| Findings → controls mapper (by tag + check_id) | `compliance/mapper.py` | 🔲 |
+| Wire compliance results into terminal, JSON, HTML output | — | 🔲 |
+| **Milestone:** compliance table shows pass/fail counts per framework | — | 🔲 |
+
+#### Sprint 6 — Polish & Distribution 🔲
+
+| Task | File | Status |
+|------|------|--------|
+| PyInstaller build script → single `.exe` | `scripts/build_exe.py` | 🔲 |
+| Tests for all 8 check modules (mocked PS output) | `tests/unit/checks/` | 🔲 (partial — firewall + AV done) |
+| Tests for rule engine (evaluator + interaction boosts) | `tests/unit/engine/` | 🔲 (partial — scorer done) |
+| GitHub Actions CI (pytest on push) | `.github/workflows/test.yml` | 🔲 |
+| **Milestone:** single `.exe`, full test suite, CI passing | — | 🔲 |
+
+---
+
+### Phase 2 — Linux 🔲
+Add `checks/linux/` modules. Runner, engine, models, output require **zero changes**.
+
+| Check | Module | Shell Command(s) | Status |
+|-------|--------|-----------------|--------|
+| Pending updates | `checks/linux/patching.py` | `apt list --upgradable` / `yum check-update` / `dnf check-update` | 🔲 |
+| Firewall | `checks/linux/firewall.py` | `ufw status` / `iptables -L` / `firewall-cmd --state` | 🔲 |
+| Disk encryption (LUKS) | `checks/linux/encryption.py` | `lsblk -o NAME,FSTYPE` + `cryptsetup status` | 🔲 |
+| Privilege escalation (sudoers, SUID) | `checks/linux/privileges.py` | `cat /etc/sudoers`, `find / -perm -4000` | 🔲 |
+| Antivirus (ClamAV, Falcon) | `checks/linux/antivirus.py` | `clamscan --version`, `systemctl status falcon-sensor` | 🔲 |
+| SSH hardening | `checks/linux/ssh.py` | `sshd -T` (parse config) | 🔲 |
+| World-writable files | `checks/linux/filesystem.py` | `find / -xdev -perm -0002` | 🔲 |
+| **Milestone:** `python -m syspulse --format terminal` works on Ubuntu/Debian/RHEL | — | 🔲 |
+
+Note: Linux checks call `run_shell_command()` from `utils/subprocess_runner.py`, not PowerShell. No PS scripts needed.
+
+---
+
+### Phase 3 — macOS 🔲
+Add `checks/darwin/` modules. Same pattern as Linux.
+
+| Check | Module | Command(s) | Status |
+|-------|--------|-----------|--------|
+| Software updates | `checks/darwin/patching.py` | `softwareupdate -l` | 🔲 |
+| Application firewall | `checks/darwin/firewall.py` | `/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate` | 🔲 |
+| FileVault encryption | `checks/darwin/encryption.py` | `fdesetup status` | 🔲 |
+| Admin group / sudo | `checks/darwin/privileges.py` | `dscl . -read /Groups/admin GroupMembership` | 🔲 |
+| Gatekeeper | `checks/darwin/gatekeeper.py` | `spctl --status` | 🔲 |
+| SIP (System Integrity Protection) | `checks/darwin/sip.py` | `csrutil status` | 🔲 |
+| **Milestone:** `python -m syspulse --format terminal` works on macOS 13+ | — | 🔲 |
+
+---
+
+## What's NOT Built Yet
+
+- `syspulse/compliance/` — `loader.py` and `mapper.py` are empty stubs; framework JSON files not populated (Sprint 5)
+- `checks/linux/` and `checks/darwin/` — empty packages with `__init__.py` only (Phase 2 & 3)
+- Missing unit tests for 6 of the 8 Windows check modules (Sprint 6)
+- PyInstaller build script (Sprint 6)
+- GitHub Actions CI (Sprint 6)
 
 ## Development Commands
 
