@@ -1,4 +1,4 @@
-.PHONY: install test lint fmt dry-run
+.PHONY: install test lint fmt run dry-run
 
 install:
 	pip install -e ".[dev]"
@@ -14,10 +14,7 @@ fmt:
 	ruff format syspulse/ tests/
 
 dry-run:
-	python3 -m syspulse --dry-run --format terminal
+	python3 -m syspulse --dry-run
 
-scan-json:
-	python3 -m syspulse --format json
-
-scan-html:
-	python3 -m syspulse --format html --output report.html && open report.html
+run:
+	python3 -m syspulse

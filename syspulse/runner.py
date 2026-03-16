@@ -3,27 +3,37 @@ from __future__ import annotations
 import getpass
 import socket
 
+from rich.console import Console
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
+
 from syspulse.checks.registry import discover_checks
-from syspulse.models.finding import CheckStatus, Finding
+from syspulse.models.finding import CheckStatus, Finding, Severity
 from syspulse.models.report import AssessmentReport, SystemProfile
-from syspulse.models.risk import SystemScore
 from syspulse.utils.logging import get_logger
 from syspulse.utils.platform_detect import Platform, current_platform, is_admin, system_info
 
 log = get_logger(__name__)
+console = Console()
 
 
 def _build_system_profile(platform: Platform, admin: bool) -> SystemProfile:
     info = system_info()
-    # Azure AD join detection is Windows-specific; stub False on other platforms
     azure_ad = False
     domain_joined = False
     if platform == Platform.WINDOWS:
         try:
-            import subprocess, json
+            import subprocess
             r = subprocess.run(
                 ["dsregcmd", "/status"],
-                capture_output=True, text=True, timeout=10
+                capture_output=True, text=True, timeout=10,
             )
             for line in r.stdout.splitlines():
                 if "AzureAdJoined" in line and "YES" in line:
@@ -48,7 +58,7 @@ def _build_system_profile(platform: Platform, admin: bool) -> SystemProfile:
 
 def run_assessment(dry_run: bool = False) -> AssessmentReport:
     """
-    Discover and run all applicable checks for the current platform,
+    Discover and run all applicable checks with a live progress bar,
     score findings through the rule engine, and return an AssessmentReport.
     """
     platform = current_platform()
@@ -57,44 +67,72 @@ def run_assessment(dry_run: bool = False) -> AssessmentReport:
     log.info("starting assessment", platform=platform.value, admin=admin, dry_run=dry_run)
 
     system_profile = _build_system_profile(platform, admin)
-
     findings: list[Finding] = []
 
     if not dry_run:
         check_classes = discover_checks(platform.value)
-        log.info("discovered checks", count=len(check_classes))
+        applicable = [
+            cls for cls in check_classes
+            if cls().is_applicable(platform.value, admin)
+        ]
 
-        for check_cls in check_classes:
-            check = check_cls()
-            if not check.is_applicable(platform.value, admin):
-                log.debug("skipping check", id=check.meta.id, reason="not applicable")
-                continue
-            try:
-                results = check.run()
-                findings.extend(results)
-                log.debug("check complete", id=check.meta.id, findings=len(results))
-            except Exception as exc:
-                log.warning("check failed", id=check.meta.id, error=str(exc))
-                # Emit an ERROR finding so the failure is visible in output
-                findings.append(Finding(
-                    id=f"{check.meta.id}-ERROR",
-                    check_id=check.meta.id,
-                    title=f"Check failed: {check.meta.name}",
-                    description=str(exc),
-                    severity=__import__("syspulse.models.finding", fromlist=["Severity"]).Severity.INFO,
-                    status=CheckStatus.ERROR,
-                    platform=platform.value,
-                    category=check.meta.category,
-                ))
+        progress = Progress(
+            SpinnerColumn(),
+            TextColumn("[bold blue]SysPulse[/bold blue] {task.description}"),
+            BarColumn(bar_width=36),
+            MofNCompleteColumn(),
+            TaskProgressColumn(),
+            TimeElapsedColumn(),
+            console=console,
+            transient=False,
+        )
 
-    # Score findings through the rule engine
-    from syspulse.engine.evaluator import evaluate_findings
-    from syspulse.engine.scorer import compute_system_score
-    from syspulse.compliance.mapper import map_compliance
+        with progress:
+            task_id = progress.add_task(
+                "Running security checks…",
+                total=len(applicable),
+            )
 
-    matches = evaluate_findings(findings)
-    system_score = compute_system_score(matches, system_profile)
-    compliance_results = map_compliance(system_score.ranked_matches)
+            for cls in applicable:
+                check = cls()
+                progress.update(
+                    task_id,
+                    description=f"[dim]{check.meta.name}[/dim]",
+                )
+                try:
+                    results = check.run()
+                    findings.extend(results)
+                    log.debug("check complete", id=check.meta.id, findings=len(results))
+                except Exception as exc:
+                    log.warning("check failed", id=check.meta.id, error=str(exc))
+                    findings.append(Finding(
+                        id=f"{check.meta.id}-ERROR",
+                        check_id=check.meta.id,
+                        title=f"Check failed: {check.meta.name}",
+                        description=str(exc),
+                        severity=Severity.INFO,
+                        status=CheckStatus.ERROR,
+                        platform=platform.value,
+                        category=check.meta.category,
+                    ))
+                finally:
+                    progress.advance(task_id)
+
+            progress.update(task_id, description="[green]All checks complete[/green]")
+
+    # ── Score ───────────────────────────────────────────────────────────────
+    with console.status("[bold blue]SysPulse[/bold blue]  Scoring findings…", spinner="dots"):
+        from syspulse.engine.evaluator import evaluate_findings
+        from syspulse.engine.scorer import compute_system_score
+        matches = evaluate_findings(findings)
+        system_score = compute_system_score(matches, system_profile)
+
+    # ── Compliance mapping ──────────────────────────────────────────────────
+    with console.status("[bold blue]SysPulse[/bold blue]  Mapping compliance frameworks…", spinner="dots"):
+        from syspulse.compliance.mapper import map_compliance
+        compliance_results = map_compliance(system_score.ranked_matches)
+
+    console.print()
 
     return AssessmentReport(
         system=system_profile,
