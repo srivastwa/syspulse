@@ -4,9 +4,9 @@ This file gives Claude context for working in this repository.
 
 ## What This Project Is
 
-SysPulse is a cross-platform security assessment agent. It runs security checks on a local machine, scores findings using a deterministic internal rule engine (no AI/cloud), and renders a risk dashboard with compliance mapping (CIS, NIST 800-53, ISO 27001).
+SysPulse is a cross-platform security assessment agent. It runs security checks on a local machine, scores findings using a deterministic internal rule engine (no AI/cloud), and renders a risk dashboard with compliance mapping (CIS, NIST 800-53, ISO 27001). Reports can be submitted to the companion eCISO web dashboard.
 
-**Phase 1 (complete):** Windows endpoint checks
+**Phase 1 (complete):** Windows endpoint checks + eCISO server
 **Phase 2 (planned):** Linux
 **Phase 3 (planned):** macOS
 
@@ -15,24 +15,43 @@ SysPulse is a cross-platform security assessment agent. It runs security checks 
 - **Python 3.8+** orchestrates everything
 - **PowerShell** scripts in `syspulse/ps_scripts/` collect Windows data — each outputs a single JSON object to stdout and exits 0
 - **Pydantic v2** for all data models — the models are the contract between modules
-- **Rich** for terminal dashboard
-- **Typer** for CLI (single-command app — invoke as `python -m syspulse --format terminal`, NOT `python -m syspulse scan`)
+- **Rich** for terminal dashboard and progress bar
+- **Typer** for CLI (single-command app — invoke as `python -m syspulse`, NOT `python -m syspulse scan`)
 - **Jinja2** for HTML report
 - **PyYAML** for rule definitions
+- **FastAPI + SQLite** for the eCISO server (`server/`)
 - `eval_type_backport` and `typing_extensions` required for Python 3.8 compatibility
 
 ## Architecture
 
 ```
-CLI (cli.py) → Runner (runner.py) → Check Registry (checks/registry.py)
-                                  ↓
-                          Windows Checks (checks/windows/*.py)
-                          each calls a ps_scripts/*.ps1
-                                  ↓
-                          Rule Engine (engine/)
-                          evaluator.py → scorer.py → interaction_matrix.py
-                                  ↓
-                          Output (output/terminal.py | json_export.py | html_report.py)
+CLI (cli.py) → startup menu → Runner (runner.py) → Check Registry (checks/registry.py)
+                                                   ↓
+                                           Windows Checks (checks/windows/*.py)
+                                           each calls a ps_scripts/*.ps1
+                                                   ↓
+                                           Rule Engine (engine/)
+                                           evaluator.py → scorer.py → interaction_matrix.py
+                                                   ↓
+                                           Output: terminal.py + html_report.py (always both)
+                                                   ↓ (option 2 only)
+                                           json_export.py → POST /api/reports → eCISO server
+```
+
+### eCISO Server (`server/`)
+
+A companion FastAPI web app that accepts JSON reports and shows them on a dashboard.
+
+```
+server/
+├── main.py           — FastAPI: POST /api/reports, GET /, GET /report/{id}, DELETE endpoints
+├── database.py       — SQLite store: init_db, insert_report, list_reports, get_report, get_stats
+├── requirements.txt  — fastapi, uvicorn[standard], jinja2, python-multipart
+├── templates/
+│   ├── dashboard.html — report list with stat cards (total, avg score, critical/high hosts)
+│   └── report.html   — full report detail: score ring, ranked findings, compliance bars, system profile
+└── static/
+    └── style.css     — dark-theme CSS matching the HTML report aesthetic
 ```
 
 ## Key Architectural Decisions
@@ -49,6 +68,14 @@ CLI (cli.py) → Runner (runner.py) → Check Registry (checks/registry.py)
 
 **Pydantic as the integration boundary:** Every module boundary is crossed via Pydantic models. Don't add parallel data structures.
 
+**Always dual output:** Every run produces both a terminal dashboard (Rich) and a self-contained HTML file. There is no `--format` flag — this is intentional. The HTML is auto-named `eciso-syspulse-<hostname>-<ddmmyy>.html`.
+
+**Startup menu:** On launch, the user picks:
+- Option 1 — Generate Report (terminal + HTML)
+- Option 2 — Generate Report + Submit to eCISO (terminal + HTML + JSON POST to server)
+
+Skipped with `--no-menu` (CI/scripting) or `--dry-run`.
+
 ## Data Model Summary
 
 ```
@@ -62,8 +89,8 @@ AssessmentReport → SystemProfile + SystemScore + compliance results
 
 | Purpose | File |
 |---------|------|
-| CLI entry | `syspulse/cli.py` |
-| Orchestration | `syspulse/runner.py` |
+| CLI entry + startup menu | `syspulse/cli.py` |
+| Orchestration + progress bar | `syspulse/runner.py` |
 | Check contract | `syspulse/checks/base.py` |
 | Check discovery | `syspulse/checks/registry.py` |
 | Windows checks | `syspulse/checks/windows/*.py` |
@@ -75,10 +102,13 @@ AssessmentReport → SystemProfile + SystemScore + compliance results
 | Interaction boosts | `syspulse/engine/interaction_matrix.py` |
 | Data models | `syspulse/models/` |
 | Terminal output | `syspulse/output/terminal.py` |
-| HTML template | `syspulse/output/templates/report.html.j2` |
-| Settings | `syspulse/config.py` |
+| HTML report | `syspulse/output/html_report.py` + `syspulse/output/templates/report.html.j2` |
+| JSON export | `syspulse/output/json_export.py` |
+| Settings | `syspulse/config.py` (`eciso_server_url` defaults to `http://localhost:8000`) |
 | PS runner util | `syspulse/utils/subprocess_runner.py` |
 | Platform detect | `syspulse/utils/platform_detect.py` |
+| eCISO server | `server/main.py` + `server/database.py` |
+| eCISO templates | `server/templates/dashboard.html` + `server/templates/report.html` |
 
 ## Check Module Pattern
 
@@ -138,6 +168,7 @@ The system Python is 3.8.3. Keep these in mind:
 - `eval_type_backport` is required for Pydantic to evaluate `dict[str, Any] | str` syntax
 - `from __future__ import annotations` is at the top of every module — this is required
 - Don't use `match` statements (3.10+), `ExceptionGroup` (3.11+), or `tomllib` (3.11+)
+- No f-string backslashes — extract to a variable first
 
 ## Sprint & Phase Plan
 
@@ -166,7 +197,7 @@ All core scaffolding. Must be complete before any check or engine work.
 | Structured logging (structlog) | `syspulse/utils/logging.py` | ✅ |
 | Settings (pydantic-settings) | `syspulse/config.py` | ✅ |
 | Orchestration runner | `syspulse/runner.py` | ✅ |
-| Typer CLI with `--dry-run`, `--format`, `--output`, `--verbose` | `syspulse/cli.py` | ✅ |
+| Typer CLI with `--dry-run`, `--output`, `--verbose`, `--no-menu` | `syspulse/cli.py` | ✅ |
 | **Milestone:** `python -m syspulse --dry-run` exits 0 | — | ✅ |
 
 #### Sprint 2 — Windows Check Modules ✅
@@ -182,7 +213,7 @@ All core scaffolding. Must be complete before any check or engine work.
 | Misconfigs bundle (SMBv1, Guest, AutoRun, RDP, shares, Secure Boot, password policy) | `checks/windows/misconfigurations.py` | `get_misconfigurations.ps1` | ✅ |
 | Backup (VSS, File History, schtasks, third-party) | `checks/windows/backup.py` | `get_backup_status.ps1` | ✅ |
 | MFA (AAD join, WHFB, no-password accounts, pwd-never-expires) | `checks/windows/mfa.py` | `get_mfa_status.ps1` | ✅ |
-| **Milestone:** `python -m syspulse --format json` dumps real findings | — | ✅ |
+| **Milestone:** `python -m syspulse` dumps real findings | — | ✅ |
 
 #### Sprint 3 — Rule Engine ✅
 Deterministic rule-based scoring. No AI.
@@ -209,9 +240,11 @@ Deterministic rule-based scoring. No AI.
 | Task | File | Status |
 |------|------|--------|
 | Rich terminal dashboard (summary, findings table, compliance, remediation) | `output/terminal.py` | ✅ |
+| Rich progress bar during check execution | `runner.py` | ✅ |
 | JSON export (schema-versioned) | `output/json_export.py` | ✅ |
-| Jinja2 HTML report (self-contained, no CDN) | `output/html_report.py` + `templates/report.html.j2` | ✅ |
-| **Milestone:** all three output formats working end-to-end | — | ✅ |
+| Jinja2 HTML report (self-contained, no CDN, auto-named) | `output/html_report.py` + `templates/report.html.j2` | ✅ |
+| Always produce terminal + HTML on every run (no `--format` flag) | `cli.py` | ✅ |
+| **Milestone:** terminal dashboard + HTML file produced on every run | — | ✅ |
 
 #### Sprint 5 — Compliance Mapping ✅
 Wire findings to CIS Benchmark, NIST 800-53, ISO 27001 controls.
@@ -227,15 +260,29 @@ Wire findings to CIS Benchmark, NIST 800-53, ISO 27001 controls.
 | Compliance mapper unit tests | `tests/unit/engine/test_compliance.py` | ✅ |
 | **Milestone:** compliance table shows pass/fail counts per framework | — | ✅ |
 
-#### Sprint 6 — Polish & Distribution (partial)
+#### Sprint 6 — Polish & Distribution ✅ (partial)
 
 | Task | File | Status |
 |------|------|--------|
-| PyInstaller build script → single `.exe` | `scripts/build_exe.py` | 🔲 |
-| Tests for all 8 check modules (mocked PS output) | `tests/unit/checks/` | ✅ (all 8 done) |
+| Tests for all 8 check modules (mocked PS output) | `tests/unit/checks/` | ✅ |
 | Tests for compliance mapper | `tests/unit/engine/test_compliance.py` | ✅ |
-| GitHub Actions CI (pytest on push, 3.8/3.10/3.12 matrix) | `.github/workflows/test.yml` | ✅ |
-| **Milestone:** single `.exe`, full test suite (49 tests), CI passing | — | 🔲 (exe pending) |
+| GitHub Actions CI (pytest on push, 3.8/3.10/3.12 matrix + ruff lint) | `.github/workflows/test.yml` | ✅ |
+| PyInstaller build script → single `.exe` | `scripts/build_exe.py` | 🔲 |
+| **Milestone:** full test suite (49 tests), CI passing | — | ✅ |
+
+#### Sprint 7 — eCISO Web Server ✅
+
+| Task | File | Status |
+|------|------|--------|
+| Startup menu: Option 1 (report only) / Option 2 (report + submit to eCISO) | `syspulse/cli.py` | ✅ |
+| `eciso_server_url` config setting | `syspulse/config.py` | ✅ |
+| FastAPI server: POST /api/reports, GET /, GET /report/{id} | `server/main.py` | ✅ |
+| SQLite report store with stats aggregation | `server/database.py` | ✅ |
+| Dashboard HTML: report list, stat cards, risk tier badges | `server/templates/dashboard.html` | ✅ |
+| Report detail HTML: score ring, ranked findings, compliance bars, system profile | `server/templates/report.html` | ✅ |
+| Dark-theme CSS | `server/static/style.css` | ✅ |
+| `make serve` / `make serve-install` targets | `Makefile` | ✅ |
+| **Milestone:** `make serve` starts dashboard; syspulse option 2 submits and report appears | — | ✅ |
 
 ---
 
@@ -251,9 +298,9 @@ Add `checks/linux/` modules. Runner, engine, models, output require **zero chang
 | Antivirus (ClamAV, Falcon) | `checks/linux/antivirus.py` | `clamscan --version`, `systemctl status falcon-sensor` | 🔲 |
 | SSH hardening | `checks/linux/ssh.py` | `sshd -T` (parse config) | 🔲 |
 | World-writable files | `checks/linux/filesystem.py` | `find / -xdev -perm -0002` | 🔲 |
-| **Milestone:** `python -m syspulse --format terminal` works on Ubuntu/Debian/RHEL | — | 🔲 |
+| **Milestone:** `python -m syspulse` works on Ubuntu/Debian/RHEL | — | 🔲 |
 
-Note: Linux checks call `run_shell_command()` from `utils/subprocess_runner.py`, not PowerShell. No PS scripts needed.
+Note: Linux checks call `run_shell_command()` from `utils/subprocess_runner.py`, not PowerShell.
 
 ---
 
@@ -268,7 +315,7 @@ Add `checks/darwin/` modules. Same pattern as Linux.
 | Admin group / sudo | `checks/darwin/privileges.py` | `dscl . -read /Groups/admin GroupMembership` | 🔲 |
 | Gatekeeper | `checks/darwin/gatekeeper.py` | `spctl --status` | 🔲 |
 | SIP (System Integrity Protection) | `checks/darwin/sip.py` | `csrutil status` | 🔲 |
-| **Milestone:** `python -m syspulse --format terminal` works on macOS 13+ | — | 🔲 |
+| **Milestone:** `python -m syspulse` works on macOS 13+ | — | 🔲 |
 
 ---
 
@@ -280,13 +327,17 @@ Add `checks/darwin/` modules. Same pattern as Linux.
 ## Development Commands
 
 ```bash
-make install    # pip install -e ".[dev]"
-make test       # pytest tests/ -v
-make dry-run    # python3 -m syspulse --dry-run --format terminal
-make scan-json  # python3 -m syspulse --format json
-make scan-html  # python3 -m syspulse --format html --output report.html && open report.html
-make lint       # ruff check + mypy
-make fmt        # ruff format
+# Agent
+make install        # pip install -e ".[dev]"
+make test           # pytest tests/ -v
+make dry-run        # python3 -m syspulse --dry-run --no-menu
+make run            # python3 -m syspulse  (shows startup menu)
+make lint           # ruff check + mypy
+make fmt            # ruff format
+
+# eCISO server
+make serve-install  # pip install -r server/requirements.txt
+make serve          # cd server && uvicorn main:app --reload --port 8000
 ```
 
 ## GitHub
