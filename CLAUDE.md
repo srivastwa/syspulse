@@ -213,28 +213,29 @@ Deterministic rule-based scoring. No AI.
 | Jinja2 HTML report (self-contained, no CDN) | `output/html_report.py` + `templates/report.html.j2` | ✅ |
 | **Milestone:** all three output formats working end-to-end | — | ✅ |
 
-#### Sprint 5 — Compliance Mapping 🔲
+#### Sprint 5 — Compliance Mapping ✅
 Wire findings to CIS Benchmark, NIST 800-53, ISO 27001 controls.
 
 | Task | File | Status |
 |------|------|--------|
-| CIS Windows Benchmark control definitions | `compliance/frameworks/cis_windows.json` | 🔲 |
-| NIST 800-53 relevant control subset | `compliance/frameworks/nist_800_53.json` | 🔲 |
-| ISO 27001 Annex A controls | `compliance/frameworks/iso_27001.json` | 🔲 |
-| Framework loader | `compliance/loader.py` | 🔲 |
-| Findings → controls mapper (by tag + check_id) | `compliance/mapper.py` | 🔲 |
-| Wire compliance results into terminal, JSON, HTML output | — | 🔲 |
-| **Milestone:** compliance table shows pass/fail counts per framework | — | 🔲 |
+| CIS Windows Benchmark control definitions (19 controls) | `compliance/frameworks/cis_windows.json` | ✅ |
+| NIST 800-53 relevant control subset (13 controls) | `compliance/frameworks/nist_800_53.json` | ✅ |
+| ISO 27001 Annex A controls (11 controls) | `compliance/frameworks/iso_27001.json` | ✅ |
+| Framework loader | `compliance/loader.py` | ✅ |
+| Findings → controls mapper (fail/pass/not_covered + pass_rate) | `compliance/mapper.py` | ✅ |
+| Wire compliance results into terminal, JSON, HTML output | runner.py + terminal.py + report.html.j2 | ✅ |
+| Compliance mapper unit tests | `tests/unit/engine/test_compliance.py` | ✅ |
+| **Milestone:** compliance table shows pass/fail counts per framework | — | ✅ |
 
-#### Sprint 6 — Polish & Distribution 🔲
+#### Sprint 6 — Polish & Distribution (partial)
 
 | Task | File | Status |
 |------|------|--------|
 | PyInstaller build script → single `.exe` | `scripts/build_exe.py` | 🔲 |
-| Tests for all 8 check modules (mocked PS output) | `tests/unit/checks/` | 🔲 (partial — firewall + AV done) |
-| Tests for rule engine (evaluator + interaction boosts) | `tests/unit/engine/` | 🔲 (partial — scorer done) |
-| GitHub Actions CI (pytest on push) | `.github/workflows/test.yml` | 🔲 |
-| **Milestone:** single `.exe`, full test suite, CI passing | — | 🔲 |
+| Tests for all 8 check modules (mocked PS output) | `tests/unit/checks/` | ✅ (all 8 done) |
+| Tests for compliance mapper | `tests/unit/engine/test_compliance.py` | ✅ |
+| GitHub Actions CI (pytest on push, 3.8/3.10/3.12 matrix) | `.github/workflows/test.yml` | ✅ |
+| **Milestone:** single `.exe`, full test suite (49 tests), CI passing | — | 🔲 (exe pending) |
 
 ---
 
@@ -273,11 +274,8 @@ Add `checks/darwin/` modules. Same pattern as Linux.
 
 ## What's NOT Built Yet
 
-- `syspulse/compliance/` — `loader.py` and `mapper.py` are empty stubs; framework JSON files not populated (Sprint 5)
+- PyInstaller build script → single `.exe` (Sprint 6 remainder)
 - `checks/linux/` and `checks/darwin/` — empty packages with `__init__.py` only (Phase 2 & 3)
-- Missing unit tests for 6 of the 8 Windows check modules (Sprint 6)
-- PyInstaller build script (Sprint 6)
-- GitHub Actions CI (Sprint 6)
 
 ## Development Commands
 

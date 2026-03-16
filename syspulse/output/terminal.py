@@ -7,6 +7,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from syspulse.models.compliance import MappingResult
 from syspulse.models.finding import Severity
 from syspulse.models.report import AssessmentReport
 from syspulse.models.risk import RuleMatch
@@ -105,6 +106,35 @@ def _remediation_panel(matches: list[RuleMatch]) -> Panel:
     return Panel(text, title="Remediation (top 10 by priority)", border_style="yellow")
 
 
+def _compliance_table(results: list[MappingResult]) -> Table:
+    table = Table(
+        title="Compliance Coverage",
+        box=box.ROUNDED,
+        border_style="blue",
+        expand=True,
+    )
+    table.add_column("Framework", ratio=3)
+    table.add_column("Version", style="dim")
+    table.add_column("Controls", justify="right")
+    table.add_column("Passing", justify="right")
+    table.add_column("Failing", justify="right")
+    table.add_column("Not Covered", justify="right")
+    table.add_column("Pass Rate", justify="right")
+
+    for r in results:
+        pass_color = "green" if r.pass_rate >= 80 else "yellow" if r.pass_rate >= 50 else "red"
+        table.add_row(
+            r.framework,
+            r.version,
+            str(r.total_controls),
+            Text(str(r.passing), style="green"),
+            Text(str(r.failing), style="red" if r.failing else "dim"),
+            Text(str(r.not_covered), style="dim"),
+            Text(f"{r.pass_rate}%", style=pass_color),
+        )
+    return table
+
+
 def render_terminal(report: AssessmentReport) -> None:
     sys_info = report.system
     header = (
@@ -125,5 +155,9 @@ def render_terminal(report: AssessmentReport) -> None:
 
     console.print(_findings_table(report.score.ranked_matches))
     console.print()
+
+    if report.compliance_results:
+        console.print(_compliance_table(report.compliance_results))
+        console.print()
 
     console.print(_remediation_panel(report.score.ranked_matches))

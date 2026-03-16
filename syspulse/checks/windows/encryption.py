@@ -29,8 +29,9 @@ class EncryptionCheck(CheckBase):
         if unencrypted:
             for vol in unencrypted:
                 drive = vol.get("mount_point", "Unknown")
+                drive_slug = drive.replace(":", "").replace("\\", "")
                 findings.append(Finding(
-                    id=f"{self.meta.id}-{drive.replace(':', '').replace('\\', '')}",
+                    id=f"{self.meta.id}-{drive_slug}",
                     check_id=self.meta.id,
                     title=f"BitLocker Not Enabled on {drive}",
                     description=(

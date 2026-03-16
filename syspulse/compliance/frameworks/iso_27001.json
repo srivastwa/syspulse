@@ -1,0 +1,72 @@
+{
+  "framework": "ISO/IEC 27001:2022",
+  "version": "2022",
+  "controls": [
+    {
+      "id": "ISO-A.9.1.2",
+      "title": "Access to Networks and Network Services",
+      "category": "A.9 Access Control",
+      "level": 0
+    },
+    {
+      "id": "ISO-A.9.2.1",
+      "title": "User Registration and De-registration",
+      "category": "A.9 Access Control",
+      "level": 0
+    },
+    {
+      "id": "ISO-A.9.2.3",
+      "title": "Management of Privileged Access Rights",
+      "category": "A.9 Access Control",
+      "level": 0
+    },
+    {
+      "id": "ISO-A.9.4.2",
+      "title": "Secure Log-on Procedures",
+      "category": "A.9 Access Control",
+      "level": 0
+    },
+    {
+      "id": "ISO-A.9.4.3",
+      "title": "Password Management System",
+      "category": "A.9 Access Control",
+      "level": 0
+    },
+    {
+      "id": "ISO-A.10.1.1",
+      "title": "Policy on the Use of Cryptographic Controls",
+      "category": "A.10 Cryptography",
+      "level": 0
+    },
+    {
+      "id": "ISO-A.11.2.6",
+      "title": "Security of Equipment and Assets Off-Premises",
+      "category": "A.11 Physical and Environmental Security",
+      "level": 0
+    },
+    {
+      "id": "ISO-A.12.2.1",
+      "title": "Controls Against Malware",
+      "category": "A.12 Operations Security",
+      "level": 0
+    },
+    {
+      "id": "ISO-A.12.3.1",
+      "title": "Information Backup",
+      "category": "A.12 Operations Security",
+      "level": 0
+    },
+    {
+      "id": "ISO-A.12.6.1",
+      "title": "Management of Technical Vulnerabilities",
+      "category": "A.12 Operations Security",
+      "level": 0
+    },
+    {
+      "id": "ISO-A.13.1.1",
+      "title": "Network Controls",
+      "category": "A.13 Communications Security",
+      "level": 0
+    }
+  ]
+}

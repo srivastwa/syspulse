@@ -1,0 +1,84 @@
+{
+  "framework": "NIST SP 800-53 Rev 5",
+  "version": "5.1",
+  "controls": [
+    {
+      "id": "NIST-AC-2",
+      "title": "Account Management",
+      "category": "Access Control",
+      "level": 0
+    },
+    {
+      "id": "NIST-AC-3",
+      "title": "Access Enforcement",
+      "category": "Access Control",
+      "level": 0
+    },
+    {
+      "id": "NIST-AC-6",
+      "title": "Least Privilege",
+      "category": "Access Control",
+      "level": 0
+    },
+    {
+      "id": "NIST-AC-17",
+      "title": "Remote Access",
+      "category": "Access Control",
+      "level": 0
+    },
+    {
+      "id": "NIST-CM-7",
+      "title": "Least Functionality — Prohibit or Restrict the Use of Functions, Ports, Protocols, and Services",
+      "category": "Configuration Management",
+      "level": 0
+    },
+    {
+      "id": "NIST-CP-9",
+      "title": "System Backup",
+      "category": "Contingency Planning",
+      "level": 0
+    },
+    {
+      "id": "NIST-IA-2",
+      "title": "Identification and Authentication (Organizational Users) — Multi-Factor Authentication",
+      "category": "Identification and Authentication",
+      "level": 0
+    },
+    {
+      "id": "NIST-IA-5",
+      "title": "Authenticator Management — Password-Based Authentication",
+      "category": "Identification and Authentication",
+      "level": 0
+    },
+    {
+      "id": "NIST-SC-7",
+      "title": "Boundary Protection",
+      "category": "System and Communications Protection",
+      "level": 0
+    },
+    {
+      "id": "NIST-SC-28",
+      "title": "Protection of Information at Rest",
+      "category": "System and Communications Protection",
+      "level": 0
+    },
+    {
+      "id": "NIST-SI-2",
+      "title": "Flaw Remediation",
+      "category": "System and Information Integrity",
+      "level": 0
+    },
+    {
+      "id": "NIST-SI-3",
+      "title": "Malicious Code Protection",
+      "category": "System and Information Integrity",
+      "level": 0
+    },
+    {
+      "id": "NIST-SI-7",
+      "title": "Software, Firmware, and Information Integrity",
+      "category": "System and Information Integrity",
+      "level": 0
+    }
+  ]
+}

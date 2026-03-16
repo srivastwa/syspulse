@@ -1,0 +1,120 @@
+{
+  "framework": "CIS Microsoft Windows 11 Benchmark",
+  "version": "2.0",
+  "controls": [
+    {
+      "id": "CIS-1.1.1",
+      "title": "Ensure 'Enforce password history' is set to '24 or more password(s)'",
+      "category": "Account Policies / Password Policy",
+      "level": 1
+    },
+    {
+      "id": "CIS-1.1.4",
+      "title": "Ensure 'Minimum password length' is set to '14 or more character(s)'",
+      "category": "Account Policies / Password Policy",
+      "level": 1
+    },
+    {
+      "id": "CIS-1.2.1",
+      "title": "Ensure 'Account lockout duration' is set to '15 or more minute(s)'",
+      "category": "Account Policies / Account Lockout Policy",
+      "level": 1
+    },
+    {
+      "id": "CIS-1.2.2",
+      "title": "Ensure 'Account lockout threshold' is set to '5 or fewer invalid logon attempt(s), but not 0'",
+      "category": "Account Policies / Account Lockout Policy",
+      "level": 1
+    },
+    {
+      "id": "CIS-2.2.21",
+      "title": "Ensure 'Deny log on locally' to include 'Guests'",
+      "category": "Local Policies / User Rights Assignment",
+      "level": 1
+    },
+    {
+      "id": "CIS-2.3.1.1",
+      "title": "Ensure 'Accounts: Block Microsoft accounts' is set to 'Users can't add or log on with Microsoft accounts'",
+      "category": "Local Policies / Security Options / Accounts",
+      "level": 1
+    },
+    {
+      "id": "CIS-2.3.1.2",
+      "title": "Ensure 'Accounts: Guest account status' is set to 'Disabled'",
+      "category": "Local Policies / Security Options / Accounts",
+      "level": 1
+    },
+    {
+      "id": "CIS-2.3.11.6",
+      "title": "Ensure 'Network access: Shares that can be accessed anonymously' is set to 'None'",
+      "category": "Local Policies / Security Options / Network Access",
+      "level": 1
+    },
+    {
+      "id": "CIS-5.1",
+      "title": "Ensure 'Microsoft Defender Antivirus' is enabled and signatures are current",
+      "category": "System Services / Antivirus",
+      "level": 1
+    },
+    {
+      "id": "CIS-9.1.1",
+      "title": "Ensure 'Windows Firewall: Domain: Firewall state' is set to 'On'",
+      "category": "Windows Firewall / Domain Profile",
+      "level": 1
+    },
+    {
+      "id": "CIS-9.2.1",
+      "title": "Ensure 'Windows Firewall: Private: Firewall state' is set to 'On'",
+      "category": "Windows Firewall / Private Profile",
+      "level": 1
+    },
+    {
+      "id": "CIS-9.3.1",
+      "title": "Ensure 'Windows Firewall: Public: Firewall state' is set to 'On'",
+      "category": "Windows Firewall / Public Profile",
+      "level": 1
+    },
+    {
+      "id": "CIS-16.3",
+      "title": "Ensure multi-factor authentication is required for all users",
+      "category": "Account / Authentication",
+      "level": 1
+    },
+    {
+      "id": "CIS-18.3.3",
+      "title": "Ensure 'Configure SMB v1 client driver' is set to 'Enabled: Disable driver (recommended)'",
+      "category": "Administrative Templates / MS Security Guide",
+      "level": 1
+    },
+    {
+      "id": "CIS-18.9.8.1",
+      "title": "Ensure 'Turn off Autoplay' is set to 'Enabled: All Drives'",
+      "category": "Administrative Templates / Windows Components / AutoPlay Policies",
+      "level": 1
+    },
+    {
+      "id": "CIS-18.9.11.1.1",
+      "title": "Ensure 'Allow enhanced PINs for startup' is set to 'Enabled' and BitLocker is configured",
+      "category": "Administrative Templates / Windows Components / BitLocker Drive Encryption",
+      "level": 1
+    },
+    {
+      "id": "CIS-18.9.12",
+      "title": "Ensure 'Turn on Virtualization Based Security' is set to 'Enabled' and Secure Boot is active",
+      "category": "Administrative Templates / Windows Components / Device Guard",
+      "level": 2
+    },
+    {
+      "id": "CIS-18.9.65.3.9.2",
+      "title": "Ensure 'Require user authentication for remote connections by using Network Level Authentication' is set to 'Enabled'",
+      "category": "Administrative Templates / Windows Components / Remote Desktop Services",
+      "level": 1
+    },
+    {
+      "id": "CIS-18.9.108",
+      "title": "Ensure 'Configure Automatic Updates' is set to 'Enabled' and updates are current",
+      "category": "Administrative Templates / Windows Components / Windows Update",
+      "level": 1
+    }
+  ]
+}

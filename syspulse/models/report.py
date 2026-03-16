@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any
 
 from pydantic import BaseModel, Field
 
+from syspulse.models.compliance import MappingResult
 from syspulse.models.risk import SystemScore
 
 
@@ -26,5 +26,5 @@ class AssessmentReport(BaseModel):
     tool_version: str = "0.1.0"
     system: SystemProfile
     score: SystemScore
-    compliance_results: list[Any] = Field(default_factory=list)
+    compliance_results: list[MappingResult] = Field(default_factory=list)
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

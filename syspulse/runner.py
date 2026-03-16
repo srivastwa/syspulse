@@ -90,11 +90,14 @@ def run_assessment(dry_run: bool = False) -> AssessmentReport:
     # Score findings through the rule engine
     from syspulse.engine.evaluator import evaluate_findings
     from syspulse.engine.scorer import compute_system_score
+    from syspulse.compliance.mapper import map_compliance
 
     matches = evaluate_findings(findings)
     system_score = compute_system_score(matches, system_profile)
+    compliance_results = map_compliance(system_score.ranked_matches)
 
     return AssessmentReport(
         system=system_profile,
         score=system_score,
+        compliance_results=compliance_results,
     )
