@@ -148,9 +148,292 @@
   {% endfor %}
   {% endif %}
 
+  {% set inv = report.inventory %}
+  {% if inv %}
+
+  {# ── Hardware ────────────────────────────────────────────────────────────── #}
+  <h2>Hardware</h2>
+
+  {% if inv.cpu %}
+  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">Processor</h3>
+  <table>
+    <thead><tr><th>Name</th><th>Cores</th><th>Threads</th><th>Clock (MHz)</th><th>L2 Cache</th><th>L3 Cache</th><th>Architecture</th></tr></thead>
+    <tbody>
+    {% for cpu in inv.cpu %}
+    <tr>
+      <td>{{ cpu.name }}</td>
+      <td>{{ cpu.cores }}</td>
+      <td>{{ cpu.logical_processors }}</td>
+      <td>{{ cpu.max_clock_speed_mhz }}</td>
+      <td>{{ (cpu.l2_cache_kb|string + ' KB') if cpu.l2_cache_kb else '—' }}</td>
+      <td>{{ (cpu.l3_cache_kb|string + ' KB') if cpu.l3_cache_kb else '—' }}</td>
+      <td>{{ cpu.architecture or '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if inv.motherboard %}
+  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">Main Circuit Board</h3>
+  <table>
+    <thead><tr><th>Manufacturer</th><th>Product</th><th>Serial Number</th><th>BIOS Version</th><th>BIOS Date</th></tr></thead>
+    <tbody>
+    <tr>
+      <td>{{ inv.motherboard.manufacturer }}</td>
+      <td>{{ inv.motherboard.product }}</td>
+      <td style="color:#6b7280;font-size:0.8rem;font-family:monospace">{{ inv.motherboard.serial_number or '—' }}</td>
+      <td>{{ inv.motherboard.bios_version or '—' }}</td>
+      <td>{{ inv.motherboard.bios_date or '—' }}</td>
+    </tr>
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if inv.memory_modules %}
+  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">Memory — {{ inv.total_ram_gb }} GB Total</h3>
+  <table>
+    <thead><tr><th>Capacity</th><th>Speed</th><th>Form Factor</th><th>Manufacturer</th><th>Part Number</th></tr></thead>
+    <tbody>
+    {% for m in inv.memory_modules %}
+    <tr>
+      <td>{{ m.capacity_gb }} GB</td>
+      <td>{{ (m.speed_mhz|string + ' MHz') if m.speed_mhz else '—' }}</td>
+      <td>{{ m.form_factor or '—' }}</td>
+      <td>{{ m.manufacturer or '—' }}</td>
+      <td style="font-family:monospace;font-size:0.8rem">{{ m.part_number or '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if inv.disks %}
+  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">Storage</h3>
+  <table>
+    <thead><tr><th>Model</th><th>Size</th><th>Type</th><th>Interface</th><th>Partitions</th><th>Serial</th></tr></thead>
+    <tbody>
+    {% for d in inv.disks %}
+    <tr>
+      <td>{{ d.model }}</td>
+      <td>{{ d.size_gb }} GB</td>
+      <td>{{ d.media_type or '—' }}</td>
+      <td>{{ d.interface_type or '—' }}</td>
+      <td>{{ d.partitions if d.partitions is not none else '—' }}</td>
+      <td style="font-size:0.75rem;font-family:monospace;color:#6b7280">{{ d.serial_number or '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if inv.display_adapters %}
+  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">Display Adapters</h3>
+  <table>
+    <thead><tr><th>Name</th><th>VRAM</th><th>Driver Version</th><th>Resolution</th></tr></thead>
+    <tbody>
+    {% for g in inv.display_adapters %}
+    <tr>
+      <td>{{ g.name }}</td>
+      <td>{{ (g.vram_mb|string + ' MB') if g.vram_mb else '—' }}</td>
+      <td style="font-family:monospace;font-size:0.8rem">{{ g.driver_version or '—' }}</td>
+      <td>{{ g.resolution or '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if inv.printers %}
+  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">Printers</h3>
+  <table>
+    <thead><tr><th>Name</th><th>Driver</th><th>Default</th><th>Network</th></tr></thead>
+    <tbody>
+    {% for p in inv.printers %}
+    <tr>
+      <td>{{ p.name }}</td>
+      <td style="color:#6b7280;font-size:0.8rem">{{ p.driver_name or '—' }}</td>
+      <td>{{ '✓' if p.is_default else '' }}</td>
+      <td>{{ '✓' if p.is_network else '' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if inv.usb_devices %}
+  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">USB Devices</h3>
+  <table>
+    <thead><tr><th>Name</th><th>Manufacturer</th></tr></thead>
+    <tbody>
+    {% for u in inv.usb_devices %}
+    <tr>
+      <td>{{ u.name }}</td>
+      <td style="color:#6b7280">{{ u.manufacturer or '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if inv.battery %}
+  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">Battery</h3>
+  <table>
+    <thead><tr><th>Name</th><th>Charge</th><th>Design Capacity</th><th>Full Charge Capacity</th><th>Status</th></tr></thead>
+    <tbody>
+    <tr>
+      <td>{{ inv.battery.name }}</td>
+      <td>{{ (inv.battery.charge_remaining_pct|string + '%') if inv.battery.charge_remaining_pct is not none else '—' }}</td>
+      <td>{{ (inv.battery.design_capacity_mwh|string + ' mWh') if inv.battery.design_capacity_mwh else '—' }}</td>
+      <td>{{ (inv.battery.full_charge_capacity_mwh|string + ' mWh') if inv.battery.full_charge_capacity_mwh else '—' }}</td>
+      <td>{{ inv.battery.status or '—' }}</td>
+    </tr>
+    </tbody>
+  </table>
+  {% endif %}
+
+  {# ── Software ────────────────────────────────────────────────────────────── #}
+  {% if inv.software %}
+  <h2>Installed Software ({{ inv.software|length }})</h2>
+  {% if inv.windows_product_id %}
+  <p style="color:#6b7280;font-size:0.8rem;margin-bottom:0.8rem">Windows Product ID: <span style="font-family:monospace">{{ inv.windows_product_id }}</span></p>
+  {% endif %}
+  <input type="text" id="sw-filter"
+    placeholder="Filter software…"
+    oninput="filterTable('sw-table','sw-filter')"
+    style="width:100%;padding:0.5rem 0.8rem;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:4px;margin-bottom:0.5rem;font-size:0.85rem">
+  <table id="sw-table">
+    <thead><tr><th>Name</th><th>Version</th><th>Publisher</th><th>Installed</th></tr></thead>
+    <tbody>
+    {% for s in inv.software %}
+    <tr>
+      <td>{{ s.name }}</td>
+      <td style="color:#6b7280;font-size:0.8rem;white-space:nowrap">{{ s.version or '—' }}</td>
+      <td style="color:#6b7280;font-size:0.8rem">{{ s.publisher or '—' }}</td>
+      <td style="color:#6b7280;font-size:0.8rem;white-space:nowrap">{{ s.install_date or '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {# ── Network ─────────────────────────────────────────────────────────────── #}
+  <h2>Network</h2>
+
+  {% if inv.network_adapters %}
+  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">Network Adapters</h3>
+  <table>
+    <thead><tr><th>Name</th><th>Description</th><th>MAC</th><th>IP Addresses</th><th>Speed</th><th>Status</th></tr></thead>
+    <tbody>
+    {% for a in inv.network_adapters %}
+    <tr>
+      <td>{{ a.name }}</td>
+      <td style="color:#6b7280;font-size:0.8rem">{{ a.description or '—' }}</td>
+      <td style="font-family:monospace;font-size:0.8rem">{{ a.mac_address or '—' }}</td>
+      <td style="font-family:monospace;font-size:0.78rem">{{ a.ip_addresses | join('<br>') | safe }}</td>
+      <td style="white-space:nowrap">{{ (a.speed_mbps|string + ' Mbps') if a.speed_mbps else '—' }}</td>
+      <td style="color:{% if a.status == 'Up' %}#4ade80{% else %}#6b7280{% endif %}">{{ a.status }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if inv.user_accounts %}
+  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">Local User Accounts</h3>
+  <table>
+    <thead><tr><th>Username</th><th>Full Name</th><th>Enabled</th><th>Last Logon</th><th>Password Required</th><th>Password Expires</th><th>Groups</th></tr></thead>
+    <tbody>
+    {% for u in inv.user_accounts %}
+    <tr>
+      <td style="font-family:monospace">{{ u.name }}</td>
+      <td style="color:#6b7280">{{ u.full_name or '—' }}</td>
+      <td style="color:{% if u.enabled %}#4ade80{% else %}#f87171{% endif %}">{{ 'Yes' if u.enabled else 'No' }}</td>
+      <td style="color:#6b7280;font-size:0.8rem">{{ u.last_logon[:16].replace('T',' ') if u.last_logon else 'Never' }}</td>
+      <td>{{ 'Yes' if u.password_required else 'No' }}</td>
+      <td>{{ 'Yes' if u.password_expires else 'No' }}</td>
+      <td style="font-size:0.78rem;color:#6b7280">{{ u.groups | join(', ') or '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if inv.shared_folders %}
+  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">Shared Folders</h3>
+  <table>
+    <thead><tr><th>Name</th><th>Path</th><th>Description</th></tr></thead>
+    <tbody>
+    {% for s in inv.shared_folders %}
+    <tr>
+      <td style="font-family:monospace">{{ s.name }}</td>
+      <td style="font-size:0.8rem">{{ s.path }}</td>
+      <td style="color:#6b7280;font-size:0.8rem">{{ s.description or '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if inv.mapped_drives %}
+  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">Mapped Network Drives</h3>
+  <table>
+    <thead><tr><th>Drive</th><th>Remote Path</th></tr></thead>
+    <tbody>
+    {% for d in inv.mapped_drives %}
+    <tr>
+      <td style="font-family:monospace">{{ d.drive_letter }}</td>
+      <td style="font-size:0.8rem">{{ d.remote_path }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {# ── Browser Extensions ─────────────────────────────────────────────────── #}
+  {% if inv.browser_extensions %}
+  <h2>Browser Extensions ({{ inv.browser_extensions|length }})</h2>
+  {% set browsers = inv.browser_extensions | map(attribute='browser') | unique | sort | list %}
+  {% for browser in browsers %}
+  {% set exts = inv.browser_extensions | selectattr('browser', 'equalto', browser) | list %}
+  <details style="margin-bottom:1rem">
+    <summary style="cursor:pointer;padding:0.6rem 1rem;background:#1a1a1a;border-radius:4px;color:#e5e7eb">
+      {{ browser|title }} — {{ exts|length }} extension{{ 's' if exts|length != 1 else '' }}
+    </summary>
+    <table style="margin-top:0.5rem">
+      <thead><tr><th>Name</th><th>Version</th><th>Extension ID</th><th>Enabled</th><th>Description</th></tr></thead>
+      <tbody>
+      {% for e in exts | sort(attribute='name') %}
+      <tr>
+        <td>{{ e.name }}</td>
+        <td style="color:#6b7280;font-size:0.8rem;white-space:nowrap">{{ e.version or '—' }}</td>
+        <td style="font-family:monospace;font-size:0.72rem;color:#6b7280">{{ e.extension_id }}</td>
+        <td style="color:{% if e.enabled %}#4ade80{% else %}#f87171{% endif %}">{{ 'Yes' if e.enabled else 'No' }}</td>
+        <td style="color:#6b7280;font-size:0.78rem">{{ e.description or '—' }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </details>
+  {% endfor %}
+  {% endif %}
+
+  {% endif %}{# end inv #}
+
   <p style="color:#4b5563;font-size:0.75rem;margin-top:3rem;border-top:1px solid #222;padding-top:1rem;">
     Generated by SysPulse v{{ report.tool_version }}
   </p>
 </div>
+
+<script>
+function filterTable(tableId, inputId) {
+  var filter = document.getElementById(inputId).value.toLowerCase();
+  var rows = document.getElementById(tableId).getElementsByTagName('tr');
+  for (var i = 1; i < rows.length; i++) {
+    var text = rows[i].textContent.toLowerCase();
+    rows[i].style.display = text.includes(filter) ? '' : 'none';
+  }
+}
+</script>
 </body>
 </html>

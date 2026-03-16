@@ -135,6 +135,60 @@ def _compliance_table(results: list[MappingResult]) -> Table:
     return table
 
 
+def _inventory_panel(report: AssessmentReport) -> Panel:
+    inv = report.inventory
+    text = Text()
+    if inv is None:
+        text.append("  No inventory collected.", style="dim")
+        return Panel(text, title="System Inventory", border_style="blue", expand=False)
+
+    # CPU
+    for cpu in inv.cpu:
+        ghz = f"{cpu.max_clock_speed_mhz / 1000:.1f} GHz" if cpu.max_clock_speed_mhz else ""
+        text.append("  CPU   ", style="dim")
+        text.append(f"{cpu.name}  {ghz}  {cpu.cores}C/{cpu.logical_processors}T\n")
+
+    # RAM
+    text.append("  RAM   ", style="dim")
+    text.append(f"{inv.total_ram_gb} GB")
+    if inv.memory_modules:
+        speeds = sorted({m.speed_mhz for m in inv.memory_modules if m.speed_mhz})
+        if speeds:
+            text.append(f"  ({speeds[-1]} MHz)")
+    text.append("\n")
+
+    # Disks
+    for disk in inv.disks:
+        text.append("  Disk  ", style="dim")
+        text.append(f"{disk.model}  {disk.size_gb} GB")
+        if disk.media_type:
+            text.append(f"  [{disk.media_type}]", style="dim")
+        text.append("\n")
+
+    # GPU
+    for gpu in inv.display_adapters:
+        text.append("  GPU   ", style="dim")
+        text.append(f"{gpu.name}")
+        if gpu.vram_mb:
+            text.append(f"  {gpu.vram_mb} MB VRAM", style="dim")
+        text.append("\n")
+
+    # Software & users counts
+    text.append("  SW    ", style="dim")
+    text.append(f"{len(inv.software)} installed packages\n")
+    text.append("  Users ", style="dim")
+    text.append(f"{len(inv.user_accounts)} local accounts\n")
+    if inv.browser_extensions:
+        browsers = sorted({e.browser for e in inv.browser_extensions})
+        text.append("  Exts  ", style="dim")
+        for br in browsers:
+            count = sum(1 for e in inv.browser_extensions if e.browser == br)
+            text.append(f"{br.title()}: {count}  ")
+        text.append("\n")
+
+    return Panel(text, title="System Inventory", border_style="blue", expand=False)
+
+
 def render_terminal(report: AssessmentReport) -> None:
     sys_info = report.system
     header = (
@@ -150,6 +204,7 @@ def render_terminal(report: AssessmentReport) -> None:
     console.print(Columns([
         _summary_panel(report),
         _critical_panel(report.score.ranked_matches),
+        _inventory_panel(report),
     ]))
     console.print()
 

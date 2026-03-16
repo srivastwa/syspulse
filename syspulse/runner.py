@@ -132,10 +132,18 @@ def run_assessment(dry_run: bool = False) -> AssessmentReport:
         from syspulse.compliance.mapper import map_compliance
         compliance_results = map_compliance(system_score.ranked_matches)
 
+    # ── Inventory collection ────────────────────────────────────────────────
+    inventory = None
+    if not dry_run and platform == Platform.WINDOWS:
+        with console.status("[bold blue]SysPulse[/bold blue]  Collecting system inventory…", spinner="dots"):
+            from syspulse.inventory.collector import collect_inventory
+            inventory = collect_inventory()
+
     console.print()
 
     return AssessmentReport(
         system=system_profile,
         score=system_score,
         compliance_results=compliance_results,
+        inventory=inventory,
     )
