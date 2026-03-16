@@ -1,0 +1,207 @@
+# SysPulse
+
+A cross-platform security assessment agent that audits Windows endpoints (Linux and macOS planned) for common security misconfigurations, scores findings using a deterministic rule engine, and outputs a prioritized risk dashboard with compliance mapping — all offline, no cloud dependencies.
+
+```
+┌─ SysPulse — WORKSTATION-01 — 2026-03-16 ────────────────────────────────────┐
+│  Overall Risk: 7.8/10  [HIGH]                                                │
+├──────────────┬───────────────────────────────────────────────────────────────┤
+│ Summary      │ Critical Findings                                             │
+│ Critical: 3  │ 1. SMBv1 Protocol is Enabled                                 │
+│ High:     5  │ 2. BitLocker Not Enabled on C:                                │
+│ Medium:   2  │ 3. No Antivirus Provider Registered                           │
+│ Pass:     8  │                                                               │
+├──────────────┴───────────────────────────────────────────────────────────────┤
+│ ID             Title                       Severity  Score  CVSS             │
+│ WIN-MISC-SMB1  SMBv1 Protocol is Enabled   CRITICAL  9.0    CVSS:3.1/AV:N/  │
+│ WIN-ENC-001-C  BitLocker Not Enabled (C:)  CRITICAL  9.1    CVSS:3.1/AV:P/  │
+│ WIN-AV-001     No AV Provider Registered   CRITICAL  8.8    CVSS:3.1/AV:N/  │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+## What It Checks
+
+| Domain | Check | Details |
+|--------|-------|---------|
+| **MFA** | Azure AD join status, Windows Hello for Business enrollment, local accounts without passwords, password-never-expires accounts | |
+| **Patching** | Pending Windows security updates, days since last install | WUA COM object |
+| **Backup** | File History, VSS shadow copies, Windows Backup, third-party (Veeam, Acronis, etc.) | |
+| **Privileges** | Local administrator enumeration, built-in Administrator account enabled, excess admin count | |
+| **Encryption** | BitLocker status per drive, protection on/off, key protector types | |
+| **Firewall** | Defender Firewall profiles (Domain/Private/Public) enabled/disabled | |
+| **Antivirus** | Security Center registered providers, definition staleness, real-time protection | |
+| **Misconfigurations** | SMBv1, Guest account, AutoRun/AutoPlay, RDP without NLA, open network shares, Secure Boot, weak password policy | |
+
+## How Risk Scoring Works
+
+No AI, no cloud — all scoring is deterministic and runs entirely offline.
+
+1. **Check modules** run PowerShell scripts and emit `Finding` objects with a default severity
+2. **Rule engine** matches each finding against YAML rules in `syspulse/engine/rules/`. Each rule has a `base_score` (0–10), `weight`, and optional `cvss_vector`
+3. **Context multiplier** (1.0–1.5) adjusts scores based on system profile: domain-joined, Azure AD joined, running as admin
+4. **Interaction penalties** amplify correlated risks:
+   - No AV + Firewall disabled → +1.5 to each
+   - SMBv1 + patches missing → +2.0 to each
+   - No encryption + open shares → +1.0 to each
+   - No MFA + excess local admins → +1.5 to each
+5. **System score** = weighted average of the top-10 final scores, capped at 10.0
+
+Risk tiers: `CRITICAL` (≥8.0) · `HIGH` (≥6.0) · `MEDIUM` (≥4.0) · `LOW` (<4.0)
+
+## Compliance Mapping
+
+Findings are tagged with control IDs. The compliance engine maps them to:
+
+- **CIS Microsoft Windows Benchmark** (levels 1 & 2)
+- **NIST SP 800-53** (relevant controls)
+- **ISO/IEC 27001:2022** (Annex A)
+
+Each rule YAML includes `compliance_tags` such as `CIS-18.3.3`, `NIST-CM-7`, `ISO-A.12.6.1`.
+
+## Output Formats
+
+| Format | Command | Description |
+|--------|---------|-------------|
+| Terminal | `python -m syspulse --format terminal` | Rich dashboard with panels, tables, remediation |
+| JSON | `python -m syspulse --format json` | Machine-readable, schema-versioned |
+| HTML | `python -m syspulse --format html -o report.html` | Self-contained, no external dependencies |
+
+## Installation
+
+**Requirements:** Python 3.8+, Windows (for actual checks — dry-run works on any OS)
+
+```bash
+git clone https://github.com/srivastwa/syspulse
+cd syspulse
+pip install -e .
+```
+
+Or install deps directly:
+```bash
+pip install pydantic pydantic-settings pyyaml rich typer jinja2 structlog eval_type_backport typing_extensions
+```
+
+## Usage
+
+```bash
+# Full security assessment — terminal dashboard
+python -m syspulse --format terminal
+
+# Dry run (no checks, tests pipeline)
+python -m syspulse --dry-run
+
+# JSON output
+python -m syspulse --format json
+
+# HTML report saved to file
+python -m syspulse --format html --output report.html
+
+# Verbose debug logging
+python -m syspulse --verbose
+```
+
+**Note:** Run from an elevated (Administrator) command prompt for complete results. Some checks (BitLocker, certain registry reads) require admin privileges.
+
+## Project Structure
+
+```
+syspulse/
+├── syspulse/
+│   ├── checks/
+│   │   ├── base.py              # CheckBase ABC — all checks implement this
+│   │   ├── registry.py          # auto-discovers check classes via importlib
+│   │   └── windows/             # 8 Windows check modules
+│   │       ├── antivirus.py
+│   │       ├── backup.py
+│   │       ├── encryption.py
+│   │       ├── firewall.py
+│   │       ├── mfa.py
+│   │       ├── misconfigurations.py
+│   │       ├── patching.py
+│   │       └── privileges.py
+│   ├── engine/
+│   │   ├── evaluator.py         # matches findings → rules
+│   │   ├── interaction_matrix.py # cross-finding amplification table
+│   │   ├── rule_loader.py       # loads + validates YAML rule files
+│   │   ├── scorer.py            # per-finding and composite scoring
+│   │   └── rules/               # 8 YAML rule files with CVSS vectors
+│   ├── models/                  # Pydantic data models (Finding, RuleMatch, etc.)
+│   ├── output/                  # terminal, json, html renderers
+│   ├── ps_scripts/              # PowerShell scripts (one per check domain)
+│   ├── runner.py                # orchestrates checks → engine → output
+│   └── cli.py                   # Typer CLI entry point
+└── tests/
+    ├── unit/checks/             # per-check tests with mocked PS output
+    ├── unit/engine/             # scorer and evaluator tests
+    └── integration/             # full dry-run end-to-end tests
+```
+
+## Adding a New Check
+
+1. Create `syspulse/checks/windows/my_check.py` with a class inheriting `CheckBase`:
+
+```python
+from syspulse.checks.base import CheckBase, CheckMeta
+from syspulse.models.finding import Finding, Severity, CheckStatus
+
+class MyCheck(CheckBase):
+    meta = CheckMeta(
+        id="WIN-MY-001",
+        name="My Security Check",
+        category="my_category",
+        platform="windows",
+    )
+
+    def run(self) -> list[Finding]:
+        # ... collect data, return Finding objects
+```
+
+2. Create a matching `syspulse/ps_scripts/get_my_data.ps1` that outputs JSON to stdout
+
+3. Add a rule in `syspulse/engine/rules/my_category.yaml`
+
+The check is auto-discovered at runtime — no registration needed.
+
+## Adding a New Rule
+
+Rules in `syspulse/engine/rules/*.yaml` follow this schema:
+
+```yaml
+- id: RULE-MY-001
+  name: Descriptive rule name
+  condition:
+    check_id_prefix: WIN-MY    # or: check_id, category, status, tag
+  base_score: 7.5              # 0.0–10.0
+  severity: HIGH               # CRITICAL | HIGH | MEDIUM | LOW | INFO
+  weight: 1.2                  # score multiplier
+  cvss_vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+  remediation:
+    - "Step 1: do this"
+    - "Step 2: do that"
+  compliance_tags:
+    - "CIS-x.x.x"
+    - "NIST-XX-1"
+    - "ISO-A.x.x.x"
+```
+
+## Running Tests
+
+```bash
+pip install pytest pytest-mock
+pytest tests/ -v
+```
+
+Tests mock the PowerShell subprocess layer so they run on any platform.
+
+## Roadmap
+
+- [ ] **Phase 2 — Linux**: `checks/linux/` modules (ufw/iptables, LUKS, apt/yum, sudoers, ClamAV)
+- [ ] **Phase 3 — macOS**: `checks/darwin/` modules (pf, FileVault, softwareupdate, admin group)
+- [ ] **Compliance engine**: full CIS/NIST/ISO mapping with pass/fail counts in output
+- [ ] **Historical trending**: compare assessments over time, track score changes
+- [ ] **PyInstaller build**: single `.exe` with no Python dependency
+- [ ] **CI**: GitHub Actions running tests on push
+
+## License
+
+MIT
