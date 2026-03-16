@@ -308,6 +308,82 @@ pre.evidence {
   max-height: 260px;
 }
 
+/* ── Tab bar ────────────────────────────────────────────── */
+.tab-bar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  padding: 0 2rem;
+  margin-bottom: 2rem;
+}
+.tab-btn {
+  padding: .75rem 1.5rem;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: .88rem;
+  font-weight: 600;
+  border-bottom: 3px solid transparent;
+  transition: color .15s, border-color .15s;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* ── Inventory profile cards ──────────────────────────── */
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.profile-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.profile-card .card-title {
+  background: var(--surface2);
+  padding: .6rem 1rem;
+  font-size: .75rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  border-bottom: 1px solid var(--border);
+}
+.profile-card table { margin: 0; }
+.profile-card td { padding: .4rem 1rem; border-bottom: 1px solid var(--surface2); font-size: .82rem; }
+.profile-card td:first-child { color: var(--muted); width: 45%; white-space: nowrap; }
+.profile-card tr:last-child td { border-bottom: none; }
+
+/* ── Software filter ────────────────────────────────────── */
+.filter-input {
+  width: 100%;
+  padding: .5rem .8rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  margin-bottom: .5rem;
+  font-size: .85rem;
+}
+.filter-input:focus { outline: none; border-color: var(--accent); }
+
+.section-heading {
+  font-size: .75rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin: 1.5rem 0 .6rem;
+  padding-bottom: .3rem;
+  border-bottom: 1px solid var(--border);
+}
+
 .tag {
   display: inline-block;
   background: var(--surface2);

@@ -79,171 +79,538 @@
     </div>
   </div>
 
-  <!-- Ranked Findings -->
-  {% if matches %}
-  <div class="card" style="margin-bottom:2rem;">
-    <div class="card-header">Ranked Findings</div>
-    <table>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Finding</th>
-          <th>Severity</th>
-          <th>Score</th>
-          <th>CVSS</th>
-          <th>Tags</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for m in matches %}
-        {% set sev_lc = m.get('severity','info')|lower %}
-        <tr>
-          <td style="color:var(--muted);">{{ loop.index }}</td>
-          <td>
-            <div style="font-weight:600;">{{ m.get('finding',{}).get('title', m.get('rule_id','')) }}</div>
-            <div style="color:var(--muted);font-size:.78rem;">{{ m.get('rule_id','') }}</div>
-          </td>
-          <td><span class="badge badge-{{ sev_lc }}">{{ m.get('severity','INFO') }}</span></td>
-          <td style="font-weight:700;color:
-            {%- if sev_lc == 'critical' %}var(--critical)
-            {%- elif sev_lc == 'high' %}var(--high)
-            {%- elif sev_lc == 'medium' %}var(--medium)
-            {%- else %}var(--low){% endif %};">
-            {{ "%.1f"|format(m.get('final_score', m.get('base_score', 0))) }}
-          </td>
-          <td style="font-size:.75rem;color:var(--muted);font-family:monospace;">
-            {{ m.get('cvss_vector', '—') }}
-          </td>
-          <td>
-            {% for tag in m.get('compliance_tags', [])[:3] %}
-              <span class="tag">{{ tag }}</span>
-            {% endfor %}
-            {% if m.get('compliance_tags', [])|length > 3 %}
-              <span class="tag">+{{ m['compliance_tags']|length - 3 }}</span>
-            {% endif %}
-          </td>
-          <td>
-            {% if m.get('interaction_boosts') %}
-              <span title="{{ m['interaction_boosts']|join(', ') }}" style="cursor:help;color:var(--high);">⚡</span>
-            {% endif %}
-          </td>
-        </tr>
-        <!-- Expandable detail row -->
-        <tr>
-          <td colspan="7" style="padding:0;background:var(--bg);">
-            <details>
-              <summary style="padding:.5rem 1.2rem;font-size:.8rem;font-weight:400;color:var(--muted);">
-                Details &amp; Remediation
-              </summary>
-              <div class="detail-body">
-                {% set f = m.get('finding', {}) %}
-                {% if f.get('description') %}
-                  <p style="color:var(--muted);margin-bottom:.6rem;">{{ f['description'] }}</p>
-                {% endif %}
-                {% if f.get('affected_resources') %}
-                  <p style="margin-bottom:.4rem;font-size:.8rem;">
-                    <strong>Affected:</strong>
-                    {% for r in f['affected_resources'] %}
-                      <span class="tag">{{ r }}</span>
-                    {% endfor %}
-                  </p>
-                {% endif %}
-                {% set steps = m.get('remediation_steps') or f.get('remediation_steps', []) %}
-                {% if steps %}
-                  <ul class="rem-list" style="margin-top:.6rem;">
-                    {% for step in steps %}
-                    <li>
-                      <span class="rem-num">{{ loop.index }}</span>
-                      <span>{{ step }}</span>
-                    </li>
-                    {% endfor %}
-                  </ul>
-                {% endif %}
-                {% if m.get('interaction_boosts') %}
-                  <p style="margin-top:.6rem;font-size:.78rem;color:var(--high);">
-                    ⚡ Interaction boosts: {{ m['interaction_boosts']|join(' · ') }}
-                  </p>
-                {% endif %}
-              </div>
-            </details>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('security',this)">Security Report</button>
+    <button class="tab-btn" onclick="switchTab('inventory',this)">System Inventory</button>
   </div>
-  {% endif %}
 
-  <!-- Compliance -->
-  {% if compliance %}
-  <div class="card" style="margin-bottom:2rem;">
-    <div class="card-header">Compliance Coverage</div>
-    <div class="compliance-grid">
-      {% for fw in compliance %}
-      {% set pct = (fw.get('pass_rate', 0) * 100)|int %}
-      <div class="framework-card">
-        <div class="fw-name">{{ fw.get('framework_name', fw.get('framework', '')) }}</div>
-        <div class="fw-bar-wrap">
-          <div class="fw-bar" style="width:{{ pct }}%;
-            background:{% if pct >= 80 %}var(--low){% elif pct >= 60 %}var(--medium){% else %}var(--critical){% endif %};">
-          </div>
-        </div>
-        <div class="fw-meta">{{ pct }}% — {{ fw.get('passed', 0) }} / {{ fw.get('total', 0) }} controls passed</div>
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- TAB 1 — SECURITY REPORT                               -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div id="tab-security" class="tab-pane active">
 
-        <!-- Control detail -->
-        {% if fw.get('results') %}
-        <details style="margin-top:.6rem;border:none;">
-          <summary style="font-size:.75rem;padding:.3rem 0;color:var(--muted);">Show controls</summary>
-          <div style="margin-top:.4rem;">
-            {% for ctrl in fw['results'] %}
-            {% set status = ctrl.get('status', 'not_covered') %}
-            <div style="display:flex;align-items:center;gap:.5rem;padding:.25rem 0;border-bottom:1px solid var(--border);font-size:.78rem;">
-              <span style="color:{% if status == 'pass' %}var(--low){% elif status == 'fail' %}var(--critical){% else %}var(--muted){% endif %};">
-                {% if status == 'pass' %}✓{% elif status == 'fail' %}✗{% else %}—{% endif %}
-              </span>
-              <span style="color:var(--muted);min-width:90px;">{{ ctrl.get('control_id', '') }}</span>
-              <span>{{ ctrl.get('control_name', ctrl.get('name', '')) }}</span>
-            </div>
-            {% endfor %}
-          </div>
-        </details>
-        {% endif %}
-      </div>
-      {% endfor %}
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- System Profile -->
-  <div class="card">
-    <div class="card-header">System Profile</div>
-    <div class="detail-body" style="padding:1rem 1.4rem;">
-      <table style="width:auto;min-width:400px;">
-        <tbody>
-          {% for key, val in system.items() %}
-          {% if val is not none and val != '' %}
+    <!-- Ranked Findings -->
+    {% if matches %}
+    <div class="card" style="margin-bottom:2rem;">
+      <div class="card-header">Ranked Findings</div>
+      <table>
+        <thead>
           <tr>
-            <td style="color:var(--muted);padding:.35rem .8rem .35rem 0;border:none;font-size:.82rem;width:180px;">
-              {{ key.replace('_',' ')|title }}
+            <th>#</th>
+            <th>Finding</th>
+            <th>Severity</th>
+            <th>Score</th>
+            <th>CVSS</th>
+            <th>Tags</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in matches %}
+          {% set sev_lc = m.get('severity','info')|lower %}
+          <tr>
+            <td style="color:var(--muted);">{{ loop.index }}</td>
+            <td>
+              <div style="font-weight:600;">{{ m.get('finding',{}).get('title', m.get('rule_id','')) }}</div>
+              <div style="color:var(--muted);font-size:.78rem;">{{ m.get('rule_id','') }}</div>
             </td>
-            <td style="border:none;font-size:.82rem;">
-              {% if val is sameas true %}
-                <span style="color:var(--low);">Yes</span>
-              {% elif val is sameas false %}
-                <span style="color:var(--critical);">No</span>
-              {% else %}
-                {{ val }}
+            <td><span class="badge badge-{{ sev_lc }}">{{ m.get('severity','INFO') }}</span></td>
+            <td style="font-weight:700;color:
+              {%- if sev_lc == 'critical' %}var(--critical)
+              {%- elif sev_lc == 'high' %}var(--high)
+              {%- elif sev_lc == 'medium' %}var(--medium)
+              {%- else %}var(--low){% endif %};">
+              {{ "%.1f"|format(m.get('final_score', m.get('base_score', 0))) }}
+            </td>
+            <td style="font-size:.75rem;color:var(--muted);font-family:monospace;">
+              {{ m.get('cvss_vector', '—') }}
+            </td>
+            <td>
+              {% for tag in m.get('compliance_tags', [])[:3] %}
+                <span class="tag">{{ tag }}</span>
+              {% endfor %}
+              {% if m.get('compliance_tags', [])|length > 3 %}
+                <span class="tag">+{{ m['compliance_tags']|length - 3 }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if m.get('interaction_boosts') %}
+                <span title="{{ m['interaction_boosts']|join(', ') }}" style="cursor:help;color:var(--high);">⚡</span>
               {% endif %}
             </td>
           </tr>
-          {% endif %}
+          <!-- Expandable detail row -->
+          <tr>
+            <td colspan="7" style="padding:0;background:var(--bg);">
+              <details>
+                <summary style="padding:.5rem 1.2rem;font-size:.8rem;font-weight:400;color:var(--muted);">
+                  Details &amp; Remediation
+                </summary>
+                <div class="detail-body">
+                  {% set f = m.get('finding', {}) %}
+                  {% if f.get('description') %}
+                    <p style="color:var(--muted);margin-bottom:.6rem;">{{ f['description'] }}</p>
+                  {% endif %}
+                  {% if f.get('affected_resources') %}
+                    <p style="margin-bottom:.4rem;font-size:.8rem;">
+                      <strong>Affected:</strong>
+                      {% for r in f['affected_resources'] %}
+                        <span class="tag">{{ r }}</span>
+                      {% endfor %}
+                    </p>
+                  {% endif %}
+                  {% set steps = m.get('remediation_steps') or f.get('remediation_steps', []) %}
+                  {% if steps %}
+                    <ul class="rem-list" style="margin-top:.6rem;">
+                      {% for step in steps %}
+                      <li>
+                        <span class="rem-num">{{ loop.index }}</span>
+                        <span>{{ step }}</span>
+                      </li>
+                      {% endfor %}
+                    </ul>
+                  {% endif %}
+                  {% if m.get('interaction_boosts') %}
+                    <p style="margin-top:.6rem;font-size:.78rem;color:var(--high);">
+                      ⚡ Interaction boosts: {{ m['interaction_boosts']|join(' · ') }}
+                    </p>
+                  {% endif %}
+                </div>
+              </details>
+            </td>
+          </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+    {% endif %}
+
+    <!-- Compliance -->
+    {% if compliance %}
+    <div class="card" style="margin-bottom:2rem;">
+      <div class="card-header">Compliance Coverage</div>
+      <div class="compliance-grid">
+        {% for fw in compliance %}
+        {% set pct = fw.get('pass_rate', 0) %}
+        {% if pct <= 1.0 %}{% set pct = (pct * 100)|int %}{% else %}{% set pct = pct|int %}{% endif %}
+        <div class="framework-card">
+          <div class="fw-name">{{ fw.get('framework_name', fw.get('framework', '')) }}</div>
+          <div class="fw-bar-wrap">
+            <div class="fw-bar" style="width:{{ pct }}%;
+              background:{% if pct >= 80 %}var(--low){% elif pct >= 60 %}var(--medium){% else %}var(--critical){% endif %};">
+            </div>
+          </div>
+          <div class="fw-meta">{{ pct }}% — {{ fw.get('passing', fw.get('passed', 0)) }} / {{ fw.get('total_controls', fw.get('total', 0)) }} controls passed</div>
+
+          {% if fw.get('details') or fw.get('results') %}
+          <details style="margin-top:.6rem;border:none;">
+            <summary style="font-size:.75rem;padding:.3rem 0;color:var(--muted);">Show controls</summary>
+            <div style="margin-top:.4rem;">
+              {% for ctrl in (fw.get('details') or fw.get('results') or []) %}
+              {% set status = ctrl.get('status', 'not_covered') %}
+              <div style="display:flex;align-items:center;gap:.5rem;padding:.25rem 0;border-bottom:1px solid var(--border);font-size:.78rem;">
+                <span style="color:{% if status == 'pass' %}var(--low){% elif status == 'fail' %}var(--critical){% else %}var(--muted){% endif %};">
+                  {% if status == 'pass' %}✓{% elif status == 'fail' %}✗{% else %}—{% endif %}
+                </span>
+                <span style="color:var(--muted);min-width:90px;">{{ ctrl.get('control_id', ctrl.get('control',{}).get('id','')) }}</span>
+                <span>{{ ctrl.get('control_name', ctrl.get('control',{}).get('title', ctrl.get('name', ''))) }}</span>
+              </div>
+              {% endfor %}
+            </div>
+          </details>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- System Profile -->
+    <div class="card">
+      <div class="card-header">System Profile</div>
+      <div class="detail-body" style="padding:1rem 1.4rem;">
+        <table style="width:auto;min-width:400px;">
+          <tbody>
+            {% for key, val in system.items() %}
+            {% if val is not none and val != '' %}
+            <tr>
+              <td style="color:var(--muted);padding:.35rem .8rem .35rem 0;border:none;font-size:.82rem;width:180px;">
+                {{ key.replace('_',' ')|title }}
+              </td>
+              <td style="border:none;font-size:.82rem;">
+                {% if val is sameas true %}
+                  <span style="color:var(--low);">Yes</span>
+                {% elif val is sameas false %}
+                  <span style="color:var(--critical);">No</span>
+                {% else %}
+                  {{ val }}
+                {% endif %}
+              </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /tab-security -->
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- TAB 2 — SYSTEM INVENTORY                              -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div id="tab-inventory" class="tab-pane">
+
+  {% if inventory %}
+  {% set inv = inventory %}
+
+    <!-- Computer Profile Summary -->
+    <p class="section-heading">Computer Profile Summary</p>
+    <div class="profile-grid">
+
+      <!-- OS / Machine -->
+      <div class="profile-card">
+        <div class="card-title">Operating System &amp; Machine</div>
+        <table>
+          <tr><td>Hostname</td><td><strong>{{ system.get('hostname','—') }}</strong></td></tr>
+          <tr><td>OS Name</td><td>{{ system.get('os_name','—') }}</td></tr>
+          <tr><td>OS Version</td><td>{{ system.get('os_version','—') }}</td></tr>
+          <tr><td>OS Build</td><td>{{ system.get('os_build','—') }}</td></tr>
+          <tr><td>Architecture</td><td>{{ system.get('architecture','—') }}</td></tr>
+          <tr><td>Domain Joined</td><td>{{ 'Yes' if system.get('domain_joined') else 'No' }}</td></tr>
+          <tr><td>Azure AD Joined</td><td>{{ 'Yes' if system.get('azure_ad_joined') else 'No' }}</td></tr>
+          <tr><td>Current User</td><td>{{ system.get('current_user','—') }}</td></tr>
+          <tr><td>Admin Privileges</td><td style="color:{% if system.get('is_admin') %}var(--high){% else %}var(--low){% endif %}">
+            {{ 'Yes' if system.get('is_admin') else 'No' }}</td></tr>
+          {% if inv.get('windows_product_id') %}
+          <tr><td>Windows Product ID</td><td style="font-family:monospace;font-size:.75rem">{{ inv['windows_product_id'] }}</td></tr>
+          {% endif %}
+        </table>
+      </div>
+
+      <!-- Processor -->
+      {% if inv.get('cpu') %}
+      <div class="profile-card">
+        <div class="card-title">Processor</div>
+        <table>
+        {% for cpu in inv['cpu'] %}
+          <tr><td>Name</td><td>{{ cpu.get('name','—') }}</td></tr>
+          {% if cpu.get('max_clock_speed_mhz') %}
+          <tr><td>Speed</td><td>{{ "%.2f"|format(cpu['max_clock_speed_mhz']/1000) }} GHz</td></tr>
+          {% endif %}
+          <tr><td>Cores / Threads</td><td>{{ cpu.get('cores','—') }} / {{ cpu.get('logical_processors','—') }}</td></tr>
+          {% if cpu.get('l2_cache_kb') %}<tr><td>L2 Cache</td><td>{{ cpu['l2_cache_kb'] }} KB</td></tr>{% endif %}
+          {% if cpu.get('l3_cache_kb') %}<tr><td>L3 Cache</td><td>{{ cpu['l3_cache_kb'] }} KB</td></tr>{% endif %}
+          {% if cpu.get('architecture') %}<tr><td>Architecture</td><td>{{ cpu['architecture'] }}</td></tr>{% endif %}
+        {% endfor %}
+        </table>
+      </div>
+      {% endif %}
+
+      <!-- Motherboard / BIOS -->
+      {% if inv.get('motherboard') %}
+      {% set mobo = inv['motherboard'] %}
+      <div class="profile-card">
+        <div class="card-title">Main Circuit Board &amp; BIOS</div>
+        <table>
+          <tr><td>Manufacturer</td><td>{{ mobo.get('manufacturer','—') }}</td></tr>
+          <tr><td>Product</td><td>{{ mobo.get('product','—') }}</td></tr>
+          {% if mobo.get('serial_number') %}
+          <tr><td>Serial Number</td><td style="font-family:monospace;font-size:.75rem">{{ mobo['serial_number'] }}</td></tr>
+          {% endif %}
+          {% if mobo.get('bios_version') %}
+          <tr><td>BIOS Version</td><td>{{ mobo['bios_version'] }}</td></tr>
+          {% endif %}
+          {% if mobo.get('bios_date') %}
+          <tr><td>BIOS Date</td><td>{{ mobo['bios_date'] }}</td></tr>
+          {% endif %}
+        </table>
+      </div>
+      {% endif %}
+
+      <!-- Memory -->
+      {% if inv.get('memory_modules') %}
+      <div class="profile-card">
+        <div class="card-title">Memory — {{ inv.get('total_ram_gb', 0) }} GB Total</div>
+        <table>
+        {% for m in inv['memory_modules'] %}
+          <tr><td>Module {{ loop.index }}</td><td>{{ m.get('capacity_gb','?') }} GB
+            {% if m.get('speed_mhz') %} @ {{ m['speed_mhz'] }} MHz{% endif %}
+            {% if m.get('form_factor') %} ({{ m['form_factor'] }}){% endif %}
+          </td></tr>
+          {% if m.get('manufacturer') %}<tr><td>&nbsp;&nbsp;Manufacturer</td><td style="color:var(--muted)">{{ m['manufacturer'] }}</td></tr>{% endif %}
+          {% if m.get('part_number') %}<tr><td>&nbsp;&nbsp;Part Number</td><td style="font-family:monospace;font-size:.75rem;color:var(--muted)">{{ m['part_number'] }}</td></tr>{% endif %}
+        {% endfor %}
+        </table>
+      </div>
+      {% endif %}
+
+    </div><!-- /profile-grid -->
+
+    <!-- Storage -->
+    {% if inv.get('disks') %}
+    <p class="section-heading">Storage Drives</p>
+    <div class="card" style="margin-bottom:1.5rem;">
+      <table>
+        <thead><tr><th>Model</th><th>Size</th><th>Type</th><th>Interface</th><th>Partitions</th><th>Serial Number</th></tr></thead>
+        <tbody>
+        {% for d in inv['disks'] %}
+        <tr>
+          <td>{{ d.get('model','—') }}</td>
+          <td style="white-space:nowrap">{{ d.get('size_gb','—') }} GB</td>
+          <td>{{ d.get('media_type','—') or '—' }}</td>
+          <td>{{ d.get('interface_type','—') or '—' }}</td>
+          <td style="text-align:center">{{ d.get('partitions','—') if d.get('partitions') is not none else '—' }}</td>
+          <td style="font-family:monospace;font-size:.75rem;color:var(--muted)">{{ d.get('serial_number','—') or '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <!-- Display Adapters -->
+    {% if inv.get('display_adapters') %}
+    <p class="section-heading">Display Adapters</p>
+    <div class="card" style="margin-bottom:1.5rem;">
+      <table>
+        <thead><tr><th>Name</th><th>VRAM</th><th>Driver Version</th><th>Resolution</th></tr></thead>
+        <tbody>
+        {% for g in inv['display_adapters'] %}
+        <tr>
+          <td>{{ g.get('name','—') }}</td>
+          <td>{{ (g['vram_mb']|string + ' MB') if g.get('vram_mb') else '—' }}</td>
+          <td style="font-family:monospace;font-size:.8rem;color:var(--muted)">{{ g.get('driver_version','—') or '—' }}</td>
+          <td>{{ g.get('resolution','—') or '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <!-- Printers -->
+    {% if inv.get('printers') %}
+    <p class="section-heading">Printers</p>
+    <div class="card" style="margin-bottom:1.5rem;">
+      <table>
+        <thead><tr><th>Name</th><th>Driver</th><th>Default</th><th>Network</th></tr></thead>
+        <tbody>
+        {% for p in inv['printers'] %}
+        <tr>
+          <td>{{ p.get('name','—') }}</td>
+          <td style="color:var(--muted);font-size:.8rem">{{ p.get('driver_name','—') or '—' }}</td>
+          <td style="color:{% if p.get('is_default') %}var(--low){% else %}var(--muted){% endif %}">{{ '✓ Yes' if p.get('is_default') else 'No' }}</td>
+          <td>{{ 'Yes' if p.get('is_network') else 'No' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <!-- USB Devices -->
+    {% if inv.get('usb_devices') %}
+    <p class="section-heading">USB Connected Devices</p>
+    <div class="card" style="margin-bottom:1.5rem;">
+      <table>
+        <thead><tr><th>Name</th><th>Manufacturer</th></tr></thead>
+        <tbody>
+        {% for u in inv['usb_devices'] %}
+        <tr>
+          <td>{{ u.get('name','—') }}</td>
+          <td style="color:var(--muted)">{{ u.get('manufacturer','—') or '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <!-- Battery -->
+    {% if inv.get('battery') %}
+    {% set bat = inv['battery'] %}
+    <p class="section-heading">Battery</p>
+    <div class="card" style="margin-bottom:1.5rem;">
+      <table>
+        <thead><tr><th>Name</th><th>Charge</th><th>Design Capacity</th><th>Full Charge Capacity</th><th>Status</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>{{ bat.get('name','—') }}</td>
+          <td>{{ (bat['charge_remaining_pct']|string + '%') if bat.get('charge_remaining_pct') is not none else '—' }}</td>
+          <td>{{ (bat['design_capacity_mwh']|string + ' mWh') if bat.get('design_capacity_mwh') else '—' }}</td>
+          <td>{{ (bat['full_charge_capacity_mwh']|string + ' mWh') if bat.get('full_charge_capacity_mwh') else '—' }}</td>
+          <td>{{ bat.get('status','—') or '—' }}</td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <!-- Installed Software -->
+    {% if inv.get('software') %}
+    <p class="section-heading">Installed Software ({{ inv['software']|length }})</p>
+    <input class="filter-input" type="text" id="sw-filter"
+      placeholder="Filter by name, publisher, version…"
+      oninput="filterTable('sw-table','sw-filter')">
+    <div class="card" style="margin-bottom:1.5rem;">
+      <table id="sw-table">
+        <thead><tr><th>#</th><th>Name</th><th>Version</th><th>Publisher</th><th>Install Date</th></tr></thead>
+        <tbody>
+        {% for s in inv['software'] %}
+        <tr>
+          <td style="color:var(--muted);font-size:.75rem;width:2.5rem">{{ loop.index }}</td>
+          <td>{{ s.get('name','—') }}</td>
+          <td style="color:var(--muted);font-size:.8rem;white-space:nowrap">{{ s.get('version','—') or '—' }}</td>
+          <td style="color:var(--muted);font-size:.8rem">{{ s.get('publisher','—') or '—' }}</td>
+          <td style="color:var(--muted);font-size:.8rem;white-space:nowrap">{{ s.get('install_date','—') or '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <!-- Network Adapters -->
+    {% if inv.get('network_adapters') %}
+    <p class="section-heading">Network Adapters</p>
+    <div class="card" style="margin-bottom:1.5rem;">
+      <table>
+        <thead><tr><th>Name</th><th>Description</th><th>MAC Address</th><th>IP Addresses</th><th>Speed</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for a in inv['network_adapters'] %}
+        <tr>
+          <td>{{ a.get('name','—') }}</td>
+          <td style="color:var(--muted);font-size:.8rem">{{ a.get('description','—') or '—' }}</td>
+          <td style="font-family:monospace;font-size:.8rem">{{ a.get('mac_address','—') or '—' }}</td>
+          <td style="font-family:monospace;font-size:.78rem">
+            {% for ip in a.get('ip_addresses', []) %}{{ ip }}<br>{% endfor %}
+          </td>
+          <td style="white-space:nowrap">{{ (a['speed_mbps']|string + ' Mbps') if a.get('speed_mbps') else '—' }}</td>
+          <td style="font-weight:600;color:{% if a.get('status') == 'Up' %}var(--low){% else %}var(--muted){% endif %}">{{ a.get('status','—') }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <!-- Local Users -->
+    {% if inv.get('user_accounts') %}
+    <p class="section-heading">Local User Accounts</p>
+    <div class="card" style="margin-bottom:1.5rem;">
+      <table>
+        <thead><tr><th>Username</th><th>Full Name</th><th>Enabled</th><th>Last Logon</th><th>Pwd Required</th><th>Pwd Expires</th><th>Groups</th></tr></thead>
+        <tbody>
+        {% for u in inv['user_accounts'] %}
+        <tr>
+          <td style="font-family:monospace;font-weight:600">{{ u.get('name','—') }}</td>
+          <td style="color:var(--muted)">{{ u.get('full_name','—') or '—' }}</td>
+          <td style="color:{% if u.get('enabled') %}var(--low){% else %}var(--critical){% endif %}">{{ 'Yes' if u.get('enabled') else 'No' }}</td>
+          <td style="color:var(--muted);font-size:.8rem">
+            {% if u.get('last_logon') %}{{ u['last_logon'][:16].replace('T',' ') }}{% else %}Never{% endif %}
+          </td>
+          <td>{{ 'Yes' if u.get('password_required') else 'No' }}</td>
+          <td>{{ 'Yes' if u.get('password_expires') else 'No' }}</td>
+          <td style="font-size:.78rem;color:var(--muted)">{{ u.get('groups', [])|join(', ') or '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <!-- Shared Folders -->
+    {% if inv.get('shared_folders') %}
+    <p class="section-heading">Shared Folders</p>
+    <div class="card" style="margin-bottom:1.5rem;">
+      <table>
+        <thead><tr><th>Name</th><th>Path</th><th>Description</th></tr></thead>
+        <tbody>
+        {% for s in inv['shared_folders'] %}
+        <tr>
+          <td style="font-family:monospace">{{ s.get('name','—') }}</td>
+          <td>{{ s.get('path','—') }}</td>
+          <td style="color:var(--muted)">{{ s.get('description','—') or '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <!-- Mapped Drives -->
+    {% if inv.get('mapped_drives') %}
+    <p class="section-heading">Mapped Network Drives</p>
+    <div class="card" style="margin-bottom:1.5rem;">
+      <table>
+        <thead><tr><th>Drive Letter</th><th>Remote Path</th></tr></thead>
+        <tbody>
+        {% for d in inv['mapped_drives'] %}
+        <tr>
+          <td style="font-family:monospace;font-weight:600">{{ d.get('drive_letter','—') }}</td>
+          <td>{{ d.get('remote_path','—') }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <!-- Browser Extensions -->
+    {% if inv.get('browser_extensions') %}
+    <p class="section-heading">Browser Extensions ({{ inv['browser_extensions']|length }})</p>
+    {% set browsers = inv['browser_extensions']|map(attribute='browser')|unique|sort|list %}
+    {% for browser in browsers %}
+    {% set exts = inv['browser_extensions']|selectattr('browser','equalto',browser)|list %}
+    <details style="margin-bottom:.5rem;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+      <summary style="background:var(--surface);padding:.75rem 1.2rem;">{{ browser|title }} — {{ exts|length }} extension{{ 's' if exts|length != 1 else '' }}</summary>
+      <div class="card" style="margin:0;border-radius:0;border:none;">
+        <table>
+          <thead><tr><th>Name</th><th>Version</th><th>Extension ID</th><th>Enabled</th><th>Description</th></tr></thead>
+          <tbody>
+          {% for e in exts|sort(attribute='name') %}
+          <tr>
+            <td>{{ e.get('name','—') }}</td>
+            <td style="color:var(--muted);font-size:.8rem;white-space:nowrap">{{ e.get('version','—') or '—' }}</td>
+            <td style="font-family:monospace;font-size:.72rem;color:var(--muted)">{{ e.get('extension_id','—') }}</td>
+            <td style="color:{% if e.get('enabled') %}var(--low){% else %}var(--critical){% endif %}">{{ 'Yes' if e.get('enabled') else 'No' }}</td>
+            <td style="color:var(--muted);font-size:.78rem">{{ e.get('description','—') or '—' }}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+    {% endfor %}
+    {% endif %}
+
+  {% else %}
+  <div class="empty-state">
+    <h2>No Inventory Data</h2>
+    <p>Inventory is only collected on Windows with a full (non-dry-run) scan submitted via Option 2.</p>
   </div>
+  {% endif %}
+
+  </div><!-- /tab-inventory -->
 
 </main>
+
+<script>
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+function filterTable(tableId, inputId) {
+  var filter = document.getElementById(inputId).value.toLowerCase();
+  var rows = document.getElementById(tableId).querySelectorAll('tbody tr');
+  rows.forEach(function(row){
+    row.style.display = row.textContent.toLowerCase().includes(filter) ? '' : 'none';
+  });
+}
+</script>
 </body>
 </html>

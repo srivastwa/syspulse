@@ -87,6 +87,7 @@ def report_detail(request: Request, report_id: int) -> HTMLResponse:
         "score":     data.get("score", {}),
         "matches":   data.get("score", {}).get("ranked_matches", []),
         "compliance": data.get("compliance_results", []),
+        "inventory": data.get("inventory"),
     })
 
 
