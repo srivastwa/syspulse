@@ -1,0 +1,33 @@
+- id: RULE-MFA-001
+  name: MFA Not Configured for User Accounts
+  condition:
+    check_id_prefix: WIN-MFA
+    status: fail
+  base_score: 8.5
+  severity: CRITICAL
+  weight: 1.4
+  cvss_vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N"
+  remediation:
+    - "Enable MFA for all Azure AD accounts in Azure Portal > Azure AD > Security > MFA"
+    - "Configure Windows Hello for Business as phishing-resistant MFA"
+    - "Enable Conditional Access policy requiring MFA for all users"
+    - "For local accounts: consider removing RDP/remote access without MFA"
+  compliance_tags:
+    - "CIS-16.3"
+    - "NIST-IA-2"
+    - "ISO-A.9.4.2"
+
+- id: RULE-MFA-002
+  name: MFA Enforced but Not All Accounts Covered
+  condition:
+    check_id_prefix: WIN-MFA
+    status: warning
+  base_score: 6.0
+  severity: HIGH
+  weight: 1.1
+  remediation:
+    - "Review accounts not covered by MFA policy"
+    - "Extend Conditional Access or per-user MFA to all accounts"
+  compliance_tags:
+    - "NIST-IA-2"
+    - "ISO-A.9.4.2"

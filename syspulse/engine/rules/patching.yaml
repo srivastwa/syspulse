@@ -1,0 +1,32 @@
+- id: RULE-PATCH-001
+  name: Critical or Security Updates Pending
+  condition:
+    check_id_prefix: WIN-PATCH
+    status: fail
+  base_score: 8.0
+  severity: HIGH
+  weight: 1.3
+  cvss_vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+  remediation:
+    - "Install pending updates immediately via Windows Update"
+    - "Run: Install-WindowsUpdate -AcceptAll -AutoReboot (requires PSWindowsUpdate module)"
+    - "Set Windows Update to automatic: sc config wuauserv start=auto && net start wuauserv"
+  compliance_tags:
+    - "CIS-18.9.108"
+    - "NIST-SI-2"
+    - "ISO-A.12.6.1"
+
+- id: RULE-PATCH-002
+  name: System Not Patched in Over 30 Days
+  condition:
+    check_id_prefix: WIN-PATCH
+    status: warning
+  base_score: 5.5
+  severity: MEDIUM
+  weight: 1.1
+  remediation:
+    - "Review and install available Windows updates"
+    - "Check Windows Update policy configuration"
+  compliance_tags:
+    - "CIS-18.9.108"
+    - "NIST-SI-2"

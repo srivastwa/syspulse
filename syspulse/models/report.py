@@ -1,0 +1,30 @@
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+from syspulse.models.risk import SystemScore
+
+
+class SystemProfile(BaseModel):
+    hostname: str
+    os_name: str
+    os_version: str
+    os_build: str
+    architecture: str
+    domain_joined: bool
+    azure_ad_joined: bool
+    current_user: str
+    is_admin: bool
+    assessed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class AssessmentReport(BaseModel):
+    schema_version: str = "1.0"
+    tool_version: str = "0.1.0"
+    system: SystemProfile
+    score: SystemScore
+    compliance_results: list[Any] = Field(default_factory=list)
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

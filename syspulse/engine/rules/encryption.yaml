@@ -1,0 +1,17 @@
+- id: RULE-ENC-001
+  name: BitLocker Not Enabled on System Drive
+  condition:
+    check_id_prefix: WIN-ENC
+    status: fail
+  base_score: 9.1
+  severity: CRITICAL
+  weight: 1.5
+  cvss_vector: "CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N"
+  remediation:
+    - "Run: manage-bde -on C: -RecoveryPassword"
+    - "Store the recovery key in Active Directory or Azure AD"
+    - "Verify encryption with: manage-bde -status"
+  compliance_tags:
+    - "CIS-18.9.11.1.1"
+    - "NIST-SC-28"
+    - "ISO-A.10.1.1"

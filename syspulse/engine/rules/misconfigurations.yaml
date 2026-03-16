@@ -1,0 +1,118 @@
+- id: RULE-MISC-SMB-001
+  name: SMBv1 Protocol Enabled
+  condition:
+    check_id_prefix: WIN-MISC
+    tag: smb1
+  base_score: 9.0
+  severity: CRITICAL
+  weight: 1.5
+  cvss_vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H"
+  remediation:
+    - "Disable SMBv1: Set-SmbServerConfiguration -EnableSMB1Protocol $false"
+    - "Verify: Get-SmbServerConfiguration | Select EnableSMB1Protocol"
+    - "Remove the SMBv1 Windows Feature: Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol"
+  compliance_tags:
+    - "CIS-18.3.3"
+    - "NIST-CM-7"
+    - "ISO-A.12.6.1"
+
+- id: RULE-MISC-SHARE-001
+  name: Open Network Shares Detected
+  condition:
+    check_id_prefix: WIN-MISC
+    tag: open-shares
+  base_score: 6.5
+  severity: HIGH
+  weight: 1.1
+  remediation:
+    - "Review all shares: Get-SmbShare | Where-Object { $_.Name -notlike '*$' }"
+    - "Remove unnecessary shares: Remove-SmbShare -Name <name> -Force"
+    - "Restrict share permissions to specific users/groups"
+  compliance_tags:
+    - "CIS-2.3.11.6"
+    - "NIST-AC-3"
+    - "ISO-A.9.1.2"
+
+- id: RULE-MISC-GUEST-001
+  name: Guest Account Enabled
+  condition:
+    check_id_prefix: WIN-MISC
+    tag: guest-account
+  base_score: 6.0
+  severity: HIGH
+  weight: 1.0
+  remediation:
+    - "Disable guest account: Disable-LocalUser -Name Guest"
+    - "Verify: Get-LocalUser -Name Guest | Select Enabled"
+  compliance_tags:
+    - "CIS-2.3.1.1"
+    - "NIST-AC-2"
+    - "ISO-A.9.2.1"
+
+- id: RULE-MISC-RDP-001
+  name: RDP Enabled Without Network Level Authentication
+  condition:
+    check_id_prefix: WIN-MISC
+    tag: rdp-nla-disabled
+  base_score: 7.5
+  severity: HIGH
+  weight: 1.2
+  cvss_vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+  remediation:
+    - "Enable NLA: Set-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp' -Name UserAuthentication -Value 1"
+    - "Consider disabling RDP if not required: Set-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server' -Name fDenyTSConnections -Value 1"
+    - "Restrict RDP access via firewall to specific IP ranges"
+  compliance_tags:
+    - "CIS-18.9.65.3.9.2"
+    - "NIST-AC-17"
+    - "ISO-A.11.2.6"
+
+- id: RULE-MISC-AUTORUN-001
+  name: AutoRun/AutoPlay Enabled
+  condition:
+    check_id_prefix: WIN-MISC
+    tag: autorun
+  base_score: 5.5
+  severity: MEDIUM
+  weight: 1.0
+  remediation:
+    - "Disable AutoRun via Group Policy: Computer Configuration > Administrative Templates > Windows Components > AutoPlay Policies"
+    - "Or via registry: Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name NoDriveTypeAutoRun -Value 255"
+  compliance_tags:
+    - "CIS-18.9.8.1"
+    - "NIST-CM-7"
+
+- id: RULE-MISC-SECUREBOOT-001
+  name: Secure Boot Disabled
+  condition:
+    check_id_prefix: WIN-MISC
+    tag: secure-boot-disabled
+  base_score: 7.0
+  severity: HIGH
+  weight: 1.2
+  remediation:
+    - "Enable Secure Boot in UEFI/BIOS firmware settings"
+    - "Verify: Confirm-SecureBootUEFI"
+  compliance_tags:
+    - "CIS-18.9.12"
+    - "NIST-SI-7"
+    - "ISO-A.11.2.6"
+
+- id: RULE-MISC-PWD-001
+  name: Weak Password Policy Configured
+  condition:
+    check_id_prefix: WIN-MISC
+    tag: weak-password-policy
+  base_score: 6.5
+  severity: HIGH
+  weight: 1.1
+  remediation:
+    - "Set minimum password length to 14+: secedit /export /cfg policy.cfg, edit MinimumPasswordLength"
+    - "Enable password complexity: PasswordComplexity = 1"
+    - "Set password history to 24: PasswordHistorySize = 24"
+    - "Configure account lockout: net accounts /lockoutthreshold:5"
+  compliance_tags:
+    - "CIS-1.1.1"
+    - "CIS-1.1.4"
+    - "NIST-IA-5"
+    - "ISO-A.9.4.3"

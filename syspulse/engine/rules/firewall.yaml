@@ -1,0 +1,33 @@
+- id: RULE-FW-001
+  name: Windows Firewall Disabled on One or More Profiles
+  condition:
+    check_id_prefix: WIN-FW
+    status: fail
+  base_score: 7.5
+  severity: HIGH
+  weight: 1.3
+  cvss_vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L"
+  remediation:
+    - "Enable all profiles: Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True"
+    - "Verify status: Get-NetFirewallProfile | Select Name, Enabled"
+    - "Ensure Windows Firewall service (mpssvc) is set to Automatic"
+  compliance_tags:
+    - "CIS-9.1.1"
+    - "CIS-9.2.1"
+    - "CIS-9.3.1"
+    - "NIST-SC-7"
+    - "ISO-A.13.1.1"
+
+- id: RULE-FW-002
+  name: Windows Firewall Disabled — Warning
+  condition:
+    check_id_prefix: WIN-FW
+    status: warning
+  base_score: 5.0
+  severity: MEDIUM
+  weight: 1.0
+  remediation:
+    - "Review firewall profile configuration and ensure all profiles are enabled"
+  compliance_tags:
+    - "CIS-9.1.1"
+    - "NIST-SC-7"

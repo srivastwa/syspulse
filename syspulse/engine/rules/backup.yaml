@@ -1,0 +1,33 @@
+- id: RULE-BACKUP-001
+  name: No Backup Solution Configured
+  condition:
+    check_id_prefix: WIN-BACKUP
+    status: fail
+  base_score: 7.0
+  severity: HIGH
+  weight: 1.1
+  cvss_vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+  remediation:
+    - "Enable Windows File History: Settings > Update & Security > Backup"
+    - "Configure Windows Server Backup or a third-party solution"
+    - "Enable Volume Shadow Copy: vssadmin create shadow /for=C:"
+    - "Test restore procedures regularly"
+  compliance_tags:
+    - "CIS-18.9"
+    - "NIST-CP-9"
+    - "ISO-A.12.3.1"
+
+- id: RULE-BACKUP-002
+  name: Backup Solution Present but Not Recently Tested
+  condition:
+    check_id_prefix: WIN-BACKUP
+    status: warning
+  base_score: 4.0
+  severity: MEDIUM
+  weight: 1.0
+  remediation:
+    - "Verify backup integrity with a test restore"
+    - "Check backup schedule and ensure recent successful backup exists"
+  compliance_tags:
+    - "NIST-CP-9"
+    - "ISO-A.12.3.1"

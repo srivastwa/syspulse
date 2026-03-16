@@ -1,0 +1,33 @@
+- id: RULE-PRIV-001
+  name: Excessive Local Administrator Accounts
+  condition:
+    check_id_prefix: WIN-PRIV
+    status: fail
+  base_score: 7.8
+  severity: HIGH
+  weight: 1.2
+  cvss_vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"
+  remediation:
+    - "Review local administrators: Get-LocalGroupMember -Group Administrators"
+    - "Remove unnecessary admin accounts: Remove-LocalGroupMember -Group Administrators -Member <user>"
+    - "Apply least-privilege principle — regular users should not be local admins"
+    - "Enable Admin Approval Mode in UAC settings"
+  compliance_tags:
+    - "CIS-2.2.21"
+    - "NIST-AC-6"
+    - "ISO-A.9.2.3"
+
+- id: RULE-PRIV-002
+  name: Built-in Administrator Account Enabled
+  condition:
+    check_id_prefix: WIN-PRIV
+    status: warning
+  base_score: 5.0
+  severity: MEDIUM
+  weight: 1.0
+  remediation:
+    - "Disable the built-in Administrator account: Disable-LocalUser -Name Administrator"
+    - "Use named administrator accounts with MFA instead"
+  compliance_tags:
+    - "CIS-2.2.21"
+    - "NIST-AC-6"

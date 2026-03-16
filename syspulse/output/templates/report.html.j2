@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SysPulse Report — {{ report.system.hostname }}</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; background: #0f0f0f; color: #e0e0e0; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+  header { border-bottom: 2px solid #333; padding-bottom: 1rem; margin-bottom: 2rem; }
+  h1 { font-size: 1.6rem; margin: 0 0 0.3rem; color: #fff; }
+  .meta { color: #888; font-size: 0.9rem; }
+  .score-badge { display: inline-block; padding: 0.4rem 1rem; border-radius: 4px; font-weight: bold; font-size: 1.2rem; }
+  .CRITICAL { background: #7f1d1d; color: #fca5a5; }
+  .HIGH { background: #7c2d12; color: #fdba74; }
+  .MEDIUM { background: #713f12; color: #fde68a; }
+  .LOW { background: #14532d; color: #86efac; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+  .summary-card { background: #1a1a1a; border-radius: 6px; padding: 1rem; text-align: center; }
+  .summary-card .count { font-size: 2rem; font-weight: bold; }
+  .summary-card .label { font-size: 0.75rem; color: #888; text-transform: uppercase; }
+  .c-critical { color: #f87171; } .c-high { color: #fb923c; } .c-medium { color: #facc15; }
+  .c-low { color: #4ade80; } .c-info { color: #94a3b8; } .c-pass { color: #34d399; }
+  table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.875rem; }
+  th { text-align: left; padding: 0.6rem 1rem; background: #1a1a1a; color: #9ca3af; font-weight: 600; border-bottom: 1px solid #333; }
+  td { padding: 0.6rem 1rem; border-bottom: 1px solid #222; vertical-align: top; }
+  tr:hover td { background: #1a1a1a; }
+  .sev { font-weight: bold; font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 3px; }
+  .sev-critical { background: #450a0a; color: #f87171; }
+  .sev-high { background: #431407; color: #fb923c; }
+  .sev-medium { background: #422006; color: #facc15; }
+  .sev-low { background: #052e16; color: #4ade80; }
+  .sev-info { background: #1e293b; color: #94a3b8; }
+  .remediation { background: #1a1a1a; border-left: 3px solid #facc15; padding: 1rem; border-radius: 0 4px 4px 0; margin: 1.5rem 0; }
+  .remediation ol { margin: 0; padding-left: 1.5rem; }
+  .remediation li { margin: 0.4rem 0; color: #d1d5db; }
+  h2 { color: #e5e7eb; font-size: 1.1rem; margin: 2rem 0 0.5rem; border-bottom: 1px solid #333; padding-bottom: 0.4rem; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>SysPulse Security Assessment</h1>
+    <div class="meta">
+      Host: <strong>{{ report.system.hostname }}</strong> &nbsp;|&nbsp;
+      OS: {{ report.system.os_name }} {{ report.system.os_version }} &nbsp;|&nbsp;
+      User: {{ report.system.current_user }} &nbsp;|&nbsp;
+      Admin: {{ "Yes" if report.system.is_admin else "No" }} &nbsp;|&nbsp;
+      {{ report.generated_at.strftime('%Y-%m-%d %H:%M UTC') }}
+    </div>
+    <br>
+    <span class="score-badge {{ report.score.tier }}">
+      {{ report.score.overall }}/10 — {{ report.score.tier }}
+    </span>
+  </header>
+
+  <h2>Summary</h2>
+  <div class="summary-grid">
+    <div class="summary-card"><div class="count c-critical">{{ report.score.counts.get('critical', 0) }}</div><div class="label">Critical</div></div>
+    <div class="summary-card"><div class="count c-high">{{ report.score.counts.get('high', 0) }}</div><div class="label">High</div></div>
+    <div class="summary-card"><div class="count c-medium">{{ report.score.counts.get('medium', 0) }}</div><div class="label">Medium</div></div>
+    <div class="summary-card"><div class="count c-low">{{ report.score.counts.get('low', 0) }}</div><div class="label">Low</div></div>
+    <div class="summary-card"><div class="count c-pass">{{ report.score.counts.get('pass', 0) }}</div><div class="label">Passed</div></div>
+  </div>
+
+  <h2>Findings</h2>
+  <table>
+    <thead>
+      <tr><th>ID</th><th>Title</th><th>Severity</th><th>Score</th><th>CVSS Vector</th><th>Affected</th></tr>
+    </thead>
+    <tbody>
+      {% for m in report.score.ranked_matches %}
+      <tr>
+        <td>{{ m.finding.id }}</td>
+        <td>{{ m.finding.title }}<br><small style="color:#6b7280">{{ m.finding.description }}</small></td>
+        <td><span class="sev sev-{{ m.severity.value }}">{{ m.severity.value.upper() }}</span></td>
+        <td>{{ "%.1f"|format(m.final_score) }}</td>
+        <td style="font-size:0.75rem;font-family:monospace">{{ m.cvss_vector or "—" }}</td>
+        <td>{{ m.finding.affected_resources | join(', ') or "—" }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" style="text-align:center;color:#6b7280">No findings.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Remediation Steps</h2>
+  <div class="remediation">
+    <ol>
+    {% set seen = namespace(steps=[]) %}
+    {% for m in report.score.ranked_matches %}
+      {% for step in m.remediation_steps %}
+        {% if step not in seen.steps %}
+          {% set _ = seen.steps.append(step) %}
+          <li>{{ step }}</li>
+        {% endif %}
+      {% endfor %}
+    {% endfor %}
+    {% if not seen.steps %}<li style="color:#6b7280">No remediation steps available.</li>{% endif %}
+    </ol>
+  </div>
+
+  <p style="color:#4b5563;font-size:0.75rem;margin-top:3rem;border-top:1px solid #222;padding-top:1rem;">
+    Generated by SysPulse v{{ report.tool_version }}
+  </p>
+</div>
+</body>
+</html>
