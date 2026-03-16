@@ -252,6 +252,96 @@ make serve-install  # pip install -r server/requirements.txt
 make serve          # start eCISO dashboard at http://localhost:8000
 ```
 
+## Hosting the eCISO Server
+
+The eCISO server can be hosted anywhere Python runs. Agents on any machine point to it via a URL.
+
+### Option 1 — Local network
+
+Run on any machine on your network:
+
+```bash
+pip install -r server/requirements.txt
+cd server
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+`--host 0.0.0.0` makes it reachable from other machines, not just localhost. Open `http://<server-ip>:8000` in a browser.
+
+### Option 2 — Cloud VM (persistent)
+
+On any VPS (AWS EC2, DigitalOcean, Hetzner, etc.), run as a systemd service so it survives reboots:
+
+```bash
+git clone https://github.com/srivastwa/syspulse
+cd syspulse && pip install -r server/requirements.txt
+
+sudo tee /etc/systemd/system/eciso.service <<EOF
+[Unit]
+Description=eCISO SysPulse Server
+After=network.target
+
+[Service]
+WorkingDirectory=/root/syspulse/server
+ExecStart=uvicorn main:app --host 0.0.0.0 --port 8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl enable --now eciso
+```
+
+Open port 8000 in your firewall, or put nginx in front with HTTPS on port 443.
+
+### Option 3 — Fly.io / Railway / Render (free tier)
+
+Deploy directly from GitHub. Set the start command to:
+
+```
+uvicorn main:app --host 0.0.0.0 --port $PORT
+```
+
+Working directory: `server/`. Attach a persistent volume to preserve the SQLite database across redeploys.
+
+---
+
+## Pointing Agents at the Server
+
+Three ways to configure the server URL, in order of preference:
+
+**1. `.env` file** (place next to where you run `python -m syspulse`):
+```
+ECISO_SERVER_URL=http://192.168.1.50:8000
+```
+
+**2. Environment variable** (one-off or CI):
+```bash
+ECISO_SERVER_URL=http://your-server:8000 python -m syspulse
+```
+
+**3. Default in `syspulse/config.py`** (if all agents always hit the same server):
+```python
+eciso_server_url: str = "http://your-server:8000"
+```
+
+### Verify connectivity
+
+Test from the agent machine before running a scan:
+
+```bash
+curl -s http://your-server:8000/api/reports \
+     -X POST \
+     -H "Content-Type: application/json" \
+     -d '{"system":{"hostname":"test"},"score":{"overall":5.0,"tier":"MEDIUM","counts":{}}}'
+# expected: {"id": 1, "status": "accepted"}
+```
+
+Then run `python -m syspulse`, select **Option 2**, and the report will appear at `http://your-server:8000`.
+
+---
+
 ## Roadmap
 
 - [ ] **Phase 2 — Linux**: `checks/linux/` modules (ufw/iptables, LUKS, apt/yum, sudoers, ClamAV, SSH hardening)
