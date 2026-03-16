@@ -3,84 +3,135 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SysPulse Report — {{ report.system.hostname }}</title>
+<title>SysPulse — {{ report.system.hostname }}</title>
 <style>
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; background: #0f0f0f; color: #e0e0e0; }
-  .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
-  header { border-bottom: 2px solid #333; padding-bottom: 1rem; margin-bottom: 2rem; }
-  h1 { font-size: 1.6rem; margin: 0 0 0.3rem; color: #fff; }
-  .meta { color: #888; font-size: 0.9rem; }
-  .score-badge { display: inline-block; padding: 0.4rem 1rem; border-radius: 4px; font-weight: bold; font-size: 1.2rem; }
-  .CRITICAL { background: #7f1d1d; color: #fca5a5; }
-  .HIGH { background: #7c2d12; color: #fdba74; }
-  .MEDIUM { background: #713f12; color: #fde68a; }
-  .LOW { background: #14532d; color: #86efac; }
-  .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
-  .summary-card { background: #1a1a1a; border-radius: 6px; padding: 1rem; text-align: center; }
-  .summary-card .count { font-size: 2rem; font-weight: bold; }
-  .summary-card .label { font-size: 0.75rem; color: #888; text-transform: uppercase; }
-  .c-critical { color: #f87171; } .c-high { color: #fb923c; } .c-medium { color: #facc15; }
-  .c-low { color: #4ade80; } .c-info { color: #94a3b8; } .c-pass { color: #34d399; }
-  table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.875rem; }
-  th { text-align: left; padding: 0.6rem 1rem; background: #1a1a1a; color: #9ca3af; font-weight: 600; border-bottom: 1px solid #333; }
-  td { padding: 0.6rem 1rem; border-bottom: 1px solid #222; vertical-align: top; }
-  tr:hover td { background: #1a1a1a; }
-  .sev { font-weight: bold; font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 3px; }
-  .sev-critical { background: #450a0a; color: #f87171; }
-  .sev-high { background: #431407; color: #fb923c; }
-  .sev-medium { background: #422006; color: #facc15; }
-  .sev-low { background: #052e16; color: #4ade80; }
-  .sev-info { background: #1e293b; color: #94a3b8; }
-  .remediation { background: #1a1a1a; border-left: 3px solid #facc15; padding: 1rem; border-radius: 0 4px 4px 0; margin: 1.5rem 0; }
-  .remediation ol { margin: 0; padding-left: 1.5rem; }
-  .remediation li { margin: 0.4rem 0; color: #d1d5db; }
-  h2 { color: #e5e7eb; font-size: 1.1rem; margin: 2rem 0 0.5rem; border-bottom: 1px solid #333; padding-bottom: 0.4rem; }
+/* ── Base ──────────────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f0f0f;color:#e0e0e0;font-size:14px;line-height:1.6}
+a{color:#60a5fa;text-decoration:none}
+/* ── Header ────────────────────────────────────────────────────────────── */
+header{background:#111827;border-bottom:1px solid #1f2937;padding:1rem 2rem;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap}
+.logo{font-weight:800;font-size:1.1rem;color:#fff;letter-spacing:.5px}
+.logo span{color:#60a5fa}
+.host-info{flex:1;min-width:200px}
+.host-info .hostname{font-size:1.1rem;font-weight:700;color:#fff}
+.host-info .meta{color:#6b7280;font-size:0.8rem;margin-top:.2rem}
+.score-badge{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem 1.2rem;border-radius:6px;font-weight:800;font-size:1.3rem;white-space:nowrap}
+.CRITICAL,.score-CRITICAL{background:#450a0a;color:#f87171;border:1px solid #991b1b}
+.HIGH,.score-HIGH{background:#431407;color:#fb923c;border:1px solid #9a3412}
+.MEDIUM,.score-MEDIUM{background:#422006;color:#facc15;border:1px solid #92400e}
+.LOW,.score-LOW{background:#052e16;color:#4ade80;border:1px solid #166534}
+/* ── Tabs ───────────────────────────────────────────────────────────────── */
+.tab-bar{background:#111827;border-bottom:1px solid #1f2937;display:flex;padding:0 2rem}
+.tab-btn{padding:.75rem 1.5rem;cursor:pointer;border:none;background:transparent;color:#6b7280;font-size:.9rem;font-weight:600;border-bottom:3px solid transparent;transition:color .15s,border-color .15s}
+.tab-btn:hover{color:#e0e0e0}
+.tab-btn.active{color:#60a5fa;border-bottom-color:#60a5fa}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
+/* ── Container ──────────────────────────────────────────────────────────── */
+.container{max-width:1200px;margin:0 auto;padding:2rem}
+/* ── Summary grid ───────────────────────────────────────────────────────── */
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:.8rem;margin:1.5rem 0}
+.summary-card{background:#1f2937;border:1px solid #374151;border-radius:8px;padding:.9rem;text-align:center}
+.summary-card .count{font-size:1.8rem;font-weight:800;line-height:1}
+.summary-card .label{font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-top:.3rem}
+.c-critical{color:#f87171}.c-high{color:#fb923c}.c-medium{color:#facc15}
+.c-low{color:#4ade80}.c-info{color:#94a3b8}.c-pass{color:#34d399}
+/* ── Tables ─────────────────────────────────────────────────────────────── */
+table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.85rem}
+th{text-align:left;padding:.55rem 1rem;background:#1f2937;color:#9ca3af;font-weight:600;border-bottom:1px solid #374151;font-size:.75rem;text-transform:uppercase;letter-spacing:.4px}
+td{padding:.6rem 1rem;border-bottom:1px solid #1f2937;vertical-align:top}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#1a2234}
+/* ── Severity badges ────────────────────────────────────────────────────── */
+.sev{font-weight:700;font-size:.72rem;padding:.2rem .55rem;border-radius:3px;white-space:nowrap}
+.sev-critical{background:#450a0a;color:#f87171}.sev-high{background:#431407;color:#fb923c}
+.sev-medium{background:#422006;color:#facc15}.sev-low{background:#052e16;color:#4ade80}
+.sev-info{background:#1e293b;color:#94a3b8}
+/* ── Remediation ────────────────────────────────────────────────────────── */
+.remediation{background:#1f2937;border-left:3px solid #facc15;padding:1rem 1.2rem;border-radius:0 6px 6px 0;margin:1rem 0}
+.remediation ol{margin:0;padding-left:1.5rem}
+.remediation li{margin:.4rem 0;color:#d1d5db}
+/* ── Section headings ───────────────────────────────────────────────────── */
+h2{color:#e5e7eb;font-size:1rem;font-weight:700;margin:2rem 0 .6rem;border-bottom:1px solid #1f2937;padding-bottom:.4rem;text-transform:uppercase;letter-spacing:.5px}
+h3{color:#9ca3af;font-size:.8rem;font-weight:600;margin:1.4rem 0 .4rem;text-transform:uppercase;letter-spacing:.5px}
+/* ── Profile cards ──────────────────────────────────────────────────────── */
+.profile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;margin:1rem 0}
+.profile-card{background:#1f2937;border:1px solid #374151;border-radius:8px;overflow:hidden}
+.profile-card .card-title{background:#111827;padding:.6rem 1rem;font-size:.75rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px}
+.profile-card table{margin:0}
+.profile-card td{padding:.45rem 1rem;border-bottom:1px solid #111827;font-size:.82rem}
+.profile-card td:first-child{color:#6b7280;width:45%;white-space:nowrap}
+.profile-card tr:last-child td{border-bottom:none}
+/* ── SW filter ──────────────────────────────────────────────────────────── */
+.filter-input{width:100%;padding:.5rem .8rem;background:#1f2937;border:1px solid #374151;color:#e0e0e0;border-radius:6px;margin-bottom:.5rem;font-size:.85rem}
+.filter-input:focus{outline:none;border-color:#60a5fa}
+/* ── Details/summary ────────────────────────────────────────────────────── */
+details{margin-bottom:.5rem;border:1px solid #1f2937;border-radius:6px;overflow:hidden}
+summary{cursor:pointer;padding:.65rem 1rem;background:#1f2937;color:#e5e7eb;font-size:.85rem;font-weight:600;list-style:none;display:flex;align-items:center;gap:.5rem}
+summary::before{content:'▶';font-size:.6rem;color:#6b7280;transition:transform .2s}
+details[open] summary::before{transform:rotate(90deg)}
+summary:hover{background:#1a2234}
+/* ── Footer ─────────────────────────────────────────────────────────────── */
+.footer{color:#374151;font-size:.75rem;margin-top:3rem;border-top:1px solid #1f2937;padding-top:1rem}
 </style>
 </head>
 <body>
-<div class="container">
-  <header>
-    <h1>SysPulse Security Assessment</h1>
+
+<!-- ── Header ─────────────────────────────────────────────────────────── -->
+<header>
+  <div class="logo">e<span>CISO</span> SysPulse</div>
+  <div class="host-info">
+    <div class="hostname">{{ report.system.hostname }}</div>
     <div class="meta">
-      Host: <strong>{{ report.system.hostname }}</strong> &nbsp;|&nbsp;
-      OS: {{ report.system.os_name }} {{ report.system.os_version }} &nbsp;|&nbsp;
-      User: {{ report.system.current_user }} &nbsp;|&nbsp;
-      Admin: {{ "Yes" if report.system.is_admin else "No" }} &nbsp;|&nbsp;
+      {{ report.system.os_name }} {{ report.system.os_version }} (Build {{ report.system.os_build }}) &nbsp;·&nbsp;
+      {{ report.system.architecture }} &nbsp;·&nbsp;
+      User: {{ report.system.current_user }}{% if report.system.is_admin %} (Admin){% endif %} &nbsp;·&nbsp;
       {{ report.generated_at.strftime('%Y-%m-%d %H:%M UTC') }}
     </div>
-    <br>
-    <span class="score-badge {{ report.score.tier }}">
-      {{ report.score.overall }}/10 — {{ report.score.tier }}
-    </span>
-  </header>
+  </div>
+  <span class="score-badge score-{{ report.score.tier }}">
+    {{ report.score.overall }}/10 &nbsp; {{ report.score.tier }}
+  </span>
+</header>
+
+<!-- ── Tab bar ────────────────────────────────────────────────────────── -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('security',this)">Security Report</button>
+  <button class="tab-btn" onclick="switchTab('inventory',this)">System Inventory</button>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 1 — SECURITY REPORT                                            -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div id="tab-security" class="tab-pane active">
+<div class="container">
 
   <h2>Summary</h2>
   <div class="summary-grid">
-    <div class="summary-card"><div class="count c-critical">{{ report.score.counts.get('critical', 0) }}</div><div class="label">Critical</div></div>
-    <div class="summary-card"><div class="count c-high">{{ report.score.counts.get('high', 0) }}</div><div class="label">High</div></div>
-    <div class="summary-card"><div class="count c-medium">{{ report.score.counts.get('medium', 0) }}</div><div class="label">Medium</div></div>
-    <div class="summary-card"><div class="count c-low">{{ report.score.counts.get('low', 0) }}</div><div class="label">Low</div></div>
-    <div class="summary-card"><div class="count c-pass">{{ report.score.counts.get('pass', 0) }}</div><div class="label">Passed</div></div>
+    <div class="summary-card"><div class="count c-critical">{{ report.score.counts.get('critical',0) }}</div><div class="label">Critical</div></div>
+    <div class="summary-card"><div class="count c-high">{{ report.score.counts.get('high',0) }}</div><div class="label">High</div></div>
+    <div class="summary-card"><div class="count c-medium">{{ report.score.counts.get('medium',0) }}</div><div class="label">Medium</div></div>
+    <div class="summary-card"><div class="count c-low">{{ report.score.counts.get('low',0) }}</div><div class="label">Low</div></div>
+    <div class="summary-card"><div class="count c-pass">{{ report.score.counts.get('pass',0) }}</div><div class="label">Passed</div></div>
   </div>
 
   <h2>Findings</h2>
   <table>
-    <thead>
-      <tr><th>ID</th><th>Title</th><th>Severity</th><th>Score</th><th>CVSS Vector</th><th>Affected</th></tr>
-    </thead>
+    <thead><tr><th>ID</th><th>Title</th><th>Severity</th><th>Score</th><th>CVSS Vector</th><th>Affected</th></tr></thead>
     <tbody>
-      {% for m in report.score.ranked_matches %}
-      <tr>
-        <td>{{ m.finding.id }}</td>
-        <td>{{ m.finding.title }}<br><small style="color:#6b7280">{{ m.finding.description }}</small></td>
-        <td><span class="sev sev-{{ m.severity.value }}">{{ m.severity.value.upper() }}</span></td>
-        <td>{{ "%.1f"|format(m.final_score) }}</td>
-        <td style="font-size:0.75rem;font-family:monospace">{{ m.cvss_vector or "—" }}</td>
-        <td>{{ m.finding.affected_resources | join(', ') or "—" }}</td>
-      </tr>
-      {% else %}
-      <tr><td colspan="6" style="text-align:center;color:#6b7280">No findings.</td></tr>
-      {% endfor %}
+    {% for m in report.score.ranked_matches %}
+    <tr>
+      <td style="font-family:monospace;font-size:.78rem;white-space:nowrap">{{ m.finding.id }}</td>
+      <td>{{ m.finding.title }}<br><small style="color:#6b7280">{{ m.finding.description }}</small></td>
+      <td><span class="sev sev-{{ m.severity.value }}">{{ m.severity.value.upper() }}</span></td>
+      <td style="font-weight:700">{{ "%.1f"|format(m.final_score) }}</td>
+      <td style="font-size:.75rem;font-family:monospace;color:#6b7280">{{ m.cvss_vector or '—' }}</td>
+      <td style="font-size:.8rem">{{ m.finding.affected_resources|join(', ') or '—' }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" style="text-align:center;color:#6b7280;padding:2rem">No findings.</td></tr>
+    {% endfor %}
     </tbody>
   </table>
 
@@ -103,140 +154,171 @@
   {% if report.compliance_results %}
   <h2>Compliance Coverage</h2>
   <table>
-    <thead>
-      <tr><th>Framework</th><th>Version</th><th>Controls</th><th>Passing</th><th>Failing</th><th>Not Covered</th><th>Pass Rate</th></tr>
-    </thead>
+    <thead><tr><th>Framework</th><th>Version</th><th>Controls</th><th>Passing</th><th>Failing</th><th>Not Covered</th><th>Pass Rate</th></tr></thead>
     <tbody>
-      {% for r in report.compliance_results %}
-      {% set rate_color = "#4ade80" if r.pass_rate >= 80 else "#facc15" if r.pass_rate >= 50 else "#f87171" %}
-      <tr>
-        <td>{{ r.framework }}</td>
-        <td style="color:#6b7280">{{ r.version }}</td>
-        <td style="text-align:right">{{ r.total_controls }}</td>
-        <td style="text-align:right;color:#4ade80">{{ r.passing }}</td>
-        <td style="text-align:right;color:{% if r.failing %}#f87171{% else %}#6b7280{% endif %}">{{ r.failing }}</td>
-        <td style="text-align:right;color:#6b7280">{{ r.not_covered }}</td>
-        <td style="text-align:right;font-weight:bold;color:{{ rate_color }}">{{ r.pass_rate }}%</td>
-      </tr>
-      {% endfor %}
+    {% for r in report.compliance_results %}
+    {% set rate_color = "#4ade80" if r.pass_rate >= 80 else "#facc15" if r.pass_rate >= 50 else "#f87171" %}
+    <tr>
+      <td>{{ r.framework }}</td>
+      <td style="color:#6b7280">{{ r.version }}</td>
+      <td style="text-align:right">{{ r.total_controls }}</td>
+      <td style="text-align:right;color:#4ade80">{{ r.passing }}</td>
+      <td style="text-align:right;color:{% if r.failing %}#f87171{% else %}#6b7280{% endif %}">{{ r.failing }}</td>
+      <td style="text-align:right;color:#6b7280">{{ r.not_covered }}</td>
+      <td style="text-align:right;font-weight:700;color:{{ rate_color }}">{{ r.pass_rate }}%</td>
+    </tr>
+    {% endfor %}
     </tbody>
   </table>
 
   <h2>Compliance Details</h2>
   {% for r in report.compliance_results %}
-  <details style="margin-bottom:1rem">
-    <summary style="cursor:pointer;padding:0.6rem 1rem;background:#1a1a1a;border-radius:4px;color:#e5e7eb">
-      {{ r.framework }} — {{ r.passing }}/{{ r.total_controls }} controls passing ({{ r.pass_rate }}%)
-    </summary>
-    <table style="margin-top:0.5rem">
-      <thead>
-        <tr><th>Control ID</th><th>Title</th><th>Category</th><th>Status</th></tr>
-      </thead>
+  <details>
+    <summary>{{ r.framework }} — {{ r.passing }}/{{ r.total_controls }} controls passing ({{ r.pass_rate }}%)</summary>
+    <table>
+      <thead><tr><th>Control ID</th><th>Title</th><th>Category</th><th>Status</th></tr></thead>
       <tbody>
-        {% for d in r.details %}
-        {% set st_color = "#4ade80" if d.status == "pass" else "#f87171" if d.status == "fail" else "#4b5563" %}
-        <tr>
-          <td style="font-family:monospace;font-size:0.8rem;white-space:nowrap">{{ d.control.id }}</td>
-          <td>{{ d.control.title }}</td>
-          <td style="color:#6b7280;font-size:0.8rem">{{ d.control.category }}</td>
-          <td style="font-weight:bold;color:{{ st_color }}">{{ d.status.upper().replace("_", " ") }}</td>
-        </tr>
-        {% endfor %}
+      {% for d in r.details %}
+      {% set st_color = "#4ade80" if d.status == "pass" else "#f87171" if d.status == "fail" else "#4b5563" %}
+      <tr>
+        <td style="font-family:monospace;font-size:.8rem;white-space:nowrap">{{ d.control.id }}</td>
+        <td>{{ d.control.title }}</td>
+        <td style="color:#6b7280;font-size:.8rem">{{ d.control.category }}</td>
+        <td style="font-weight:700;color:{{ st_color }}">{{ d.status.upper().replace("_"," ") }}</td>
+      </tr>
+      {% endfor %}
       </tbody>
     </table>
   </details>
   {% endfor %}
   {% endif %}
 
-  {% set inv = report.inventory %}
+  <p class="footer">Generated by SysPulse v{{ report.tool_version }}</p>
+</div>
+</div><!-- /tab-security -->
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 2 — SYSTEM INVENTORY                                           -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div id="tab-inventory" class="tab-pane">
+<div class="container">
+
+{% set inv = report.inventory %}
+{% set sys = report.system %}
+
+  <!-- ── Computer Profile Summary ─────────────────────────────────────── -->
+  <h2>Computer Profile Summary</h2>
+  <div class="profile-grid">
+
+    <!-- OS / Machine -->
+    <div class="profile-card">
+      <div class="card-title">Operating System &amp; Machine</div>
+      <table>
+        <tr><td>Hostname</td><td><strong>{{ sys.hostname }}</strong></td></tr>
+        <tr><td>OS Name</td><td>{{ sys.os_name }}</td></tr>
+        <tr><td>OS Version</td><td>{{ sys.os_version }}</td></tr>
+        <tr><td>OS Build</td><td>{{ sys.os_build }}</td></tr>
+        <tr><td>Architecture</td><td>{{ sys.architecture }}</td></tr>
+        <tr><td>Domain Joined</td><td>{{ 'Yes' if sys.domain_joined else 'No' }}</td></tr>
+        <tr><td>Azure AD Joined</td><td>{{ 'Yes' if sys.azure_ad_joined else 'No' }}</td></tr>
+        <tr><td>Current User</td><td>{{ sys.current_user }}</td></tr>
+        <tr><td>Admin Privileges</td><td style="color:{% if sys.is_admin %}#fb923c{% else %}#4ade80{% endif %}">{{ 'Yes' if sys.is_admin else 'No' }}</td></tr>
+        <tr><td>Assessed At</td><td style="color:#6b7280;font-size:.8rem">{{ sys.assessed_at.strftime('%Y-%m-%d %H:%M UTC') }}</td></tr>
+        {% if inv and inv.windows_product_id %}
+        <tr><td>Windows Product ID</td><td style="font-family:monospace;font-size:.78rem">{{ inv.windows_product_id }}</td></tr>
+        {% endif %}
+      </table>
+    </div>
+
+    {% if inv %}
+
+    <!-- Processor -->
+    {% if inv.cpu %}
+    <div class="profile-card">
+      <div class="card-title">Processor</div>
+      <table>
+      {% for cpu in inv.cpu %}
+        <tr><td>Name</td><td>{{ cpu.name }}</td></tr>
+        <tr><td>Speed</td><td>{{ "%.2f"|format(cpu.max_clock_speed_mhz/1000) }} GHz</td></tr>
+        <tr><td>Cores / Threads</td><td>{{ cpu.cores }} / {{ cpu.logical_processors }}</td></tr>
+        {% if cpu.l2_cache_kb %}<tr><td>L2 Cache</td><td>{{ cpu.l2_cache_kb }} KB</td></tr>{% endif %}
+        {% if cpu.l3_cache_kb %}<tr><td>L3 Cache</td><td>{{ cpu.l3_cache_kb }} KB</td></tr>{% endif %}
+        <tr><td>Architecture</td><td>{{ cpu.architecture or sys.architecture }}</td></tr>
+      {% endfor %}
+      </table>
+    </div>
+    {% endif %}
+
+    <!-- Motherboard / BIOS -->
+    {% if inv.motherboard %}
+    <div class="profile-card">
+      <div class="card-title">Main Circuit Board &amp; BIOS</div>
+      <table>
+        <tr><td>Manufacturer</td><td>{{ inv.motherboard.manufacturer }}</td></tr>
+        <tr><td>Product</td><td>{{ inv.motherboard.product }}</td></tr>
+        {% if inv.motherboard.serial_number %}
+        <tr><td>Serial Number</td><td style="font-family:monospace;font-size:.78rem">{{ inv.motherboard.serial_number }}</td></tr>
+        {% endif %}
+        {% if inv.motherboard.bios_version %}
+        <tr><td>BIOS Version</td><td>{{ inv.motherboard.bios_version }}</td></tr>
+        {% endif %}
+        {% if inv.motherboard.bios_date %}
+        <tr><td>BIOS Date</td><td>{{ inv.motherboard.bios_date }}</td></tr>
+        {% endif %}
+      </table>
+    </div>
+    {% endif %}
+
+    <!-- Memory -->
+    {% if inv.memory_modules %}
+    <div class="profile-card">
+      <div class="card-title">Memory — {{ inv.total_ram_gb }} GB Total</div>
+      <table>
+      {% for m in inv.memory_modules %}
+        <tr><td>Module {{ loop.index }}</td><td>{{ m.capacity_gb }} GB{% if m.speed_mhz %} @ {{ m.speed_mhz }} MHz{% endif %}{% if m.form_factor %} ({{ m.form_factor }}){% endif %}</td></tr>
+        {% if m.manufacturer %}<tr><td>&nbsp;&nbsp;Manufacturer</td><td style="color:#6b7280">{{ m.manufacturer }}</td></tr>{% endif %}
+        {% if m.part_number %}<tr><td>&nbsp;&nbsp;Part Number</td><td style="font-family:monospace;font-size:.75rem;color:#6b7280">{{ m.part_number }}</td></tr>{% endif %}
+      {% endfor %}
+      </table>
+    </div>
+    {% endif %}
+
+    {% endif %}{# inv #}
+  </div>
+
   {% if inv %}
 
-  {# ── Hardware ────────────────────────────────────────────────────────────── #}
-  <h2>Hardware</h2>
-
-  {% if inv.cpu %}
-  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">Processor</h3>
-  <table>
-    <thead><tr><th>Name</th><th>Cores</th><th>Threads</th><th>Clock (MHz)</th><th>L2 Cache</th><th>L3 Cache</th><th>Architecture</th></tr></thead>
-    <tbody>
-    {% for cpu in inv.cpu %}
-    <tr>
-      <td>{{ cpu.name }}</td>
-      <td>{{ cpu.cores }}</td>
-      <td>{{ cpu.logical_processors }}</td>
-      <td>{{ cpu.max_clock_speed_mhz }}</td>
-      <td>{{ (cpu.l2_cache_kb|string + ' KB') if cpu.l2_cache_kb else '—' }}</td>
-      <td>{{ (cpu.l3_cache_kb|string + ' KB') if cpu.l3_cache_kb else '—' }}</td>
-      <td>{{ cpu.architecture or '—' }}</td>
-    </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  {% endif %}
-
-  {% if inv.motherboard %}
-  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">Main Circuit Board</h3>
-  <table>
-    <thead><tr><th>Manufacturer</th><th>Product</th><th>Serial Number</th><th>BIOS Version</th><th>BIOS Date</th></tr></thead>
-    <tbody>
-    <tr>
-      <td>{{ inv.motherboard.manufacturer }}</td>
-      <td>{{ inv.motherboard.product }}</td>
-      <td style="color:#6b7280;font-size:0.8rem;font-family:monospace">{{ inv.motherboard.serial_number or '—' }}</td>
-      <td>{{ inv.motherboard.bios_version or '—' }}</td>
-      <td>{{ inv.motherboard.bios_date or '—' }}</td>
-    </tr>
-    </tbody>
-  </table>
-  {% endif %}
-
-  {% if inv.memory_modules %}
-  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">Memory — {{ inv.total_ram_gb }} GB Total</h3>
-  <table>
-    <thead><tr><th>Capacity</th><th>Speed</th><th>Form Factor</th><th>Manufacturer</th><th>Part Number</th></tr></thead>
-    <tbody>
-    {% for m in inv.memory_modules %}
-    <tr>
-      <td>{{ m.capacity_gb }} GB</td>
-      <td>{{ (m.speed_mhz|string + ' MHz') if m.speed_mhz else '—' }}</td>
-      <td>{{ m.form_factor or '—' }}</td>
-      <td>{{ m.manufacturer or '—' }}</td>
-      <td style="font-family:monospace;font-size:0.8rem">{{ m.part_number or '—' }}</td>
-    </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  {% endif %}
-
+  <!-- ── Storage ──────────────────────────────────────────────────────── -->
   {% if inv.disks %}
-  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">Storage</h3>
+  <h2>Storage Drives</h2>
   <table>
-    <thead><tr><th>Model</th><th>Size</th><th>Type</th><th>Interface</th><th>Partitions</th><th>Serial</th></tr></thead>
+    <thead><tr><th>Model</th><th>Size</th><th>Type</th><th>Interface</th><th>Partitions</th><th>Serial Number</th></tr></thead>
     <tbody>
     {% for d in inv.disks %}
     <tr>
       <td>{{ d.model }}</td>
-      <td>{{ d.size_gb }} GB</td>
+      <td style="white-space:nowrap">{{ d.size_gb }} GB</td>
       <td>{{ d.media_type or '—' }}</td>
       <td>{{ d.interface_type or '—' }}</td>
-      <td>{{ d.partitions if d.partitions is not none else '—' }}</td>
-      <td style="font-size:0.75rem;font-family:monospace;color:#6b7280">{{ d.serial_number or '—' }}</td>
+      <td style="text-align:center">{{ d.partitions if d.partitions is not none else '—' }}</td>
+      <td style="font-family:monospace;font-size:.75rem;color:#6b7280">{{ d.serial_number or '—' }}</td>
     </tr>
     {% endfor %}
     </tbody>
   </table>
   {% endif %}
 
+  <!-- ── Display Adapters ─────────────────────────────────────────────── -->
   {% if inv.display_adapters %}
-  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">Display Adapters</h3>
+  <h2>Display Adapters</h2>
   <table>
-    <thead><tr><th>Name</th><th>VRAM</th><th>Driver Version</th><th>Resolution</th></tr></thead>
+    <thead><tr><th>Name</th><th>VRAM</th><th>Driver Version</th><th>Current Resolution</th></tr></thead>
     <tbody>
     {% for g in inv.display_adapters %}
     <tr>
       <td>{{ g.name }}</td>
       <td>{{ (g.vram_mb|string + ' MB') if g.vram_mb else '—' }}</td>
-      <td style="font-family:monospace;font-size:0.8rem">{{ g.driver_version or '—' }}</td>
+      <td style="font-family:monospace;font-size:.8rem;color:#6b7280">{{ g.driver_version or '—' }}</td>
       <td>{{ g.resolution or '—' }}</td>
     </tr>
     {% endfor %}
@@ -244,25 +326,27 @@
   </table>
   {% endif %}
 
+  <!-- ── Printers ─────────────────────────────────────────────────────── -->
   {% if inv.printers %}
-  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">Printers</h3>
+  <h2>Printers</h2>
   <table>
     <thead><tr><th>Name</th><th>Driver</th><th>Default</th><th>Network</th></tr></thead>
     <tbody>
     {% for p in inv.printers %}
     <tr>
       <td>{{ p.name }}</td>
-      <td style="color:#6b7280;font-size:0.8rem">{{ p.driver_name or '—' }}</td>
-      <td>{{ '✓' if p.is_default else '' }}</td>
-      <td>{{ '✓' if p.is_network else '' }}</td>
+      <td style="color:#6b7280;font-size:.8rem">{{ p.driver_name or '—' }}</td>
+      <td style="color:{% if p.is_default %}#4ade80{% else %}#6b7280{% endif %}">{{ '✓ Yes' if p.is_default else 'No' }}</td>
+      <td>{{ 'Yes' if p.is_network else 'No' }}</td>
     </tr>
     {% endfor %}
     </tbody>
   </table>
   {% endif %}
 
+  <!-- ── USB Devices ──────────────────────────────────────────────────── -->
   {% if inv.usb_devices %}
-  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">USB Devices</h3>
+  <h2>USB Connected Devices</h2>
   <table>
     <thead><tr><th>Name</th><th>Manufacturer</th></tr></thead>
     <tbody>
@@ -276,10 +360,11 @@
   </table>
   {% endif %}
 
+  <!-- ── Battery ──────────────────────────────────────────────────────── -->
   {% if inv.battery %}
-  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">Battery</h3>
+  <h2>Battery</h2>
   <table>
-    <thead><tr><th>Name</th><th>Charge</th><th>Design Capacity</th><th>Full Charge Capacity</th><th>Status</th></tr></thead>
+    <thead><tr><th>Name</th><th>Charge Remaining</th><th>Design Capacity</th><th>Full Charge Capacity</th><th>Status</th></tr></thead>
     <tbody>
     <tr>
       <td>{{ inv.battery.name }}</td>
@@ -292,124 +377,120 @@
   </table>
   {% endif %}
 
-  {# ── Software ────────────────────────────────────────────────────────────── #}
+  <!-- ── Software Inventory ───────────────────────────────────────────── -->
   {% if inv.software %}
   <h2>Installed Software ({{ inv.software|length }})</h2>
-  {% if inv.windows_product_id %}
-  <p style="color:#6b7280;font-size:0.8rem;margin-bottom:0.8rem">Windows Product ID: <span style="font-family:monospace">{{ inv.windows_product_id }}</span></p>
-  {% endif %}
-  <input type="text" id="sw-filter"
-    placeholder="Filter software…"
-    oninput="filterTable('sw-table','sw-filter')"
-    style="width:100%;padding:0.5rem 0.8rem;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:4px;margin-bottom:0.5rem;font-size:0.85rem">
+  <input class="filter-input" type="text" id="sw-filter"
+    placeholder="Filter by name, publisher, version…"
+    oninput="filterTable('sw-table','sw-filter')">
   <table id="sw-table">
-    <thead><tr><th>Name</th><th>Version</th><th>Publisher</th><th>Installed</th></tr></thead>
+    <thead><tr><th>#</th><th>Name</th><th>Version</th><th>Publisher</th><th>Install Date</th></tr></thead>
     <tbody>
     {% for s in inv.software %}
     <tr>
+      <td style="color:#4b5563;font-size:.75rem;width:2.5rem">{{ loop.index }}</td>
       <td>{{ s.name }}</td>
-      <td style="color:#6b7280;font-size:0.8rem;white-space:nowrap">{{ s.version or '—' }}</td>
-      <td style="color:#6b7280;font-size:0.8rem">{{ s.publisher or '—' }}</td>
-      <td style="color:#6b7280;font-size:0.8rem;white-space:nowrap">{{ s.install_date or '—' }}</td>
+      <td style="color:#6b7280;font-size:.8rem;white-space:nowrap">{{ s.version or '—' }}</td>
+      <td style="color:#6b7280;font-size:.8rem">{{ s.publisher or '—' }}</td>
+      <td style="color:#6b7280;font-size:.8rem;white-space:nowrap">{{ s.install_date or '—' }}</td>
     </tr>
     {% endfor %}
     </tbody>
   </table>
   {% endif %}
 
-  {# ── Network ─────────────────────────────────────────────────────────────── #}
-  <h2>Network</h2>
-
+  <!-- ── Network ──────────────────────────────────────────────────────── -->
   {% if inv.network_adapters %}
-  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">Network Adapters</h3>
+  <h2>Network Adapters</h2>
   <table>
-    <thead><tr><th>Name</th><th>Description</th><th>MAC</th><th>IP Addresses</th><th>Speed</th><th>Status</th></tr></thead>
+    <thead><tr><th>Name</th><th>Description</th><th>MAC Address</th><th>IP Addresses</th><th>Speed</th><th>Status</th></tr></thead>
     <tbody>
     {% for a in inv.network_adapters %}
     <tr>
       <td>{{ a.name }}</td>
-      <td style="color:#6b7280;font-size:0.8rem">{{ a.description or '—' }}</td>
-      <td style="font-family:monospace;font-size:0.8rem">{{ a.mac_address or '—' }}</td>
-      <td style="font-family:monospace;font-size:0.78rem">{{ a.ip_addresses | join('<br>') | safe }}</td>
+      <td style="color:#6b7280;font-size:.8rem">{{ a.description or '—' }}</td>
+      <td style="font-family:monospace;font-size:.8rem">{{ a.mac_address or '—' }}</td>
+      <td style="font-family:monospace;font-size:.78rem">{{ a.ip_addresses|join('<br>')|safe }}</td>
       <td style="white-space:nowrap">{{ (a.speed_mbps|string + ' Mbps') if a.speed_mbps else '—' }}</td>
-      <td style="color:{% if a.status == 'Up' %}#4ade80{% else %}#6b7280{% endif %}">{{ a.status }}</td>
+      <td style="font-weight:600;color:{% if a.status == 'Up' %}#4ade80{% else %}#6b7280{% endif %}">{{ a.status }}</td>
     </tr>
     {% endfor %}
     </tbody>
   </table>
   {% endif %}
 
+  <!-- ── Local Users ──────────────────────────────────────────────────── -->
   {% if inv.user_accounts %}
-  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">Local User Accounts</h3>
+  <h2>Local User Accounts</h2>
   <table>
-    <thead><tr><th>Username</th><th>Full Name</th><th>Enabled</th><th>Last Logon</th><th>Password Required</th><th>Password Expires</th><th>Groups</th></tr></thead>
+    <thead><tr><th>Username</th><th>Full Name</th><th>Enabled</th><th>Last Logon</th><th>Pwd Required</th><th>Pwd Expires</th><th>Groups</th></tr></thead>
     <tbody>
     {% for u in inv.user_accounts %}
     <tr>
-      <td style="font-family:monospace">{{ u.name }}</td>
+      <td style="font-family:monospace;font-weight:600">{{ u.name }}</td>
       <td style="color:#6b7280">{{ u.full_name or '—' }}</td>
       <td style="color:{% if u.enabled %}#4ade80{% else %}#f87171{% endif %}">{{ 'Yes' if u.enabled else 'No' }}</td>
-      <td style="color:#6b7280;font-size:0.8rem">{{ u.last_logon[:16].replace('T',' ') if u.last_logon else 'Never' }}</td>
+      <td style="color:#6b7280;font-size:.8rem">{{ u.last_logon[:16].replace('T',' ') if u.last_logon else 'Never' }}</td>
       <td>{{ 'Yes' if u.password_required else 'No' }}</td>
       <td>{{ 'Yes' if u.password_expires else 'No' }}</td>
-      <td style="font-size:0.78rem;color:#6b7280">{{ u.groups | join(', ') or '—' }}</td>
+      <td style="font-size:.78rem;color:#6b7280">{{ u.groups|join(', ') or '—' }}</td>
     </tr>
     {% endfor %}
     </tbody>
   </table>
   {% endif %}
 
+  <!-- ── Shared Folders ───────────────────────────────────────────────── -->
   {% if inv.shared_folders %}
-  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">Shared Folders</h3>
+  <h2>Shared Folders</h2>
   <table>
     <thead><tr><th>Name</th><th>Path</th><th>Description</th></tr></thead>
     <tbody>
     {% for s in inv.shared_folders %}
     <tr>
       <td style="font-family:monospace">{{ s.name }}</td>
-      <td style="font-size:0.8rem">{{ s.path }}</td>
-      <td style="color:#6b7280;font-size:0.8rem">{{ s.description or '—' }}</td>
+      <td>{{ s.path }}</td>
+      <td style="color:#6b7280">{{ s.description or '—' }}</td>
     </tr>
     {% endfor %}
     </tbody>
   </table>
   {% endif %}
 
+  <!-- ── Mapped Drives ────────────────────────────────────────────────── -->
   {% if inv.mapped_drives %}
-  <h3 style="color:#9ca3af;font-size:0.85rem;font-weight:600;margin:1.2rem 0 0.4rem;text-transform:uppercase;letter-spacing:.5px;">Mapped Network Drives</h3>
+  <h2>Mapped Network Drives</h2>
   <table>
-    <thead><tr><th>Drive</th><th>Remote Path</th></tr></thead>
+    <thead><tr><th>Drive Letter</th><th>Remote Path</th></tr></thead>
     <tbody>
     {% for d in inv.mapped_drives %}
     <tr>
-      <td style="font-family:monospace">{{ d.drive_letter }}</td>
-      <td style="font-size:0.8rem">{{ d.remote_path }}</td>
+      <td style="font-family:monospace;font-weight:600">{{ d.drive_letter }}</td>
+      <td>{{ d.remote_path }}</td>
     </tr>
     {% endfor %}
     </tbody>
   </table>
   {% endif %}
 
-  {# ── Browser Extensions ─────────────────────────────────────────────────── #}
+  <!-- ── Browser Extensions ───────────────────────────────────────────── -->
   {% if inv.browser_extensions %}
   <h2>Browser Extensions ({{ inv.browser_extensions|length }})</h2>
-  {% set browsers = inv.browser_extensions | map(attribute='browser') | unique | sort | list %}
+  {% set browsers = inv.browser_extensions|map(attribute='browser')|unique|sort|list %}
   {% for browser in browsers %}
-  {% set exts = inv.browser_extensions | selectattr('browser', 'equalto', browser) | list %}
-  <details style="margin-bottom:1rem">
-    <summary style="cursor:pointer;padding:0.6rem 1rem;background:#1a1a1a;border-radius:4px;color:#e5e7eb">
-      {{ browser|title }} — {{ exts|length }} extension{{ 's' if exts|length != 1 else '' }}
-    </summary>
-    <table style="margin-top:0.5rem">
+  {% set exts = inv.browser_extensions|selectattr('browser','equalto',browser)|list %}
+  <details>
+    <summary>{{ browser|title }} — {{ exts|length }} extension{{ 's' if exts|length != 1 else '' }}</summary>
+    <table>
       <thead><tr><th>Name</th><th>Version</th><th>Extension ID</th><th>Enabled</th><th>Description</th></tr></thead>
       <tbody>
-      {% for e in exts | sort(attribute='name') %}
+      {% for e in exts|sort(attribute='name') %}
       <tr>
         <td>{{ e.name }}</td>
-        <td style="color:#6b7280;font-size:0.8rem;white-space:nowrap">{{ e.version or '—' }}</td>
-        <td style="font-family:monospace;font-size:0.72rem;color:#6b7280">{{ e.extension_id }}</td>
+        <td style="color:#6b7280;font-size:.8rem;white-space:nowrap">{{ e.version or '—' }}</td>
+        <td style="font-family:monospace;font-size:.72rem;color:#6b7280">{{ e.extension_id }}</td>
         <td style="color:{% if e.enabled %}#4ade80{% else %}#f87171{% endif %}">{{ 'Yes' if e.enabled else 'No' }}</td>
-        <td style="color:#6b7280;font-size:0.78rem">{{ e.description or '—' }}</td>
+        <td style="color:#6b7280;font-size:.78rem">{{ e.description or '—' }}</td>
       </tr>
       {% endfor %}
       </tbody>
@@ -418,21 +499,30 @@
   {% endfor %}
   {% endif %}
 
-  {% endif %}{# end inv #}
+  {% else %}
+  <div style="text-align:center;padding:4rem 2rem;color:#4b5563">
+    <p style="font-size:1.1rem;margin-bottom:.5rem">No inventory data collected.</p>
+    <p>Inventory is only collected on Windows with a full (non-dry-run) scan.</p>
+  </div>
+  {% endif %}
 
-  <p style="color:#4b5563;font-size:0.75rem;margin-top:3rem;border-top:1px solid #222;padding-top:1rem;">
-    Generated by SysPulse v{{ report.tool_version }}
-  </p>
+  <p class="footer">Generated by SysPulse v{{ report.tool_version }}</p>
 </div>
+</div><!-- /tab-inventory -->
 
 <script>
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
 function filterTable(tableId, inputId) {
   var filter = document.getElementById(inputId).value.toLowerCase();
-  var rows = document.getElementById(tableId).getElementsByTagName('tr');
-  for (var i = 1; i < rows.length; i++) {
-    var text = rows[i].textContent.toLowerCase();
-    rows[i].style.display = text.includes(filter) ? '' : 'none';
-  }
+  var rows = document.getElementById(tableId).querySelectorAll('tbody tr');
+  rows.forEach(function(row){
+    row.style.display = row.textContent.toLowerCase().includes(filter) ? '' : 'none';
+  });
 }
 </script>
 </body>
