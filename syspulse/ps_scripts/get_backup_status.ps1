@@ -16,11 +16,21 @@ try {
 } catch {}
 
 $thirdParty = @()
-$backupSoftware = @("Veeam", "Acronis", "Backup Exec", "Carbonite", "Backblaze")
-foreach ($sw in $backupSoftware) {
-    $installed = Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
-        Where-Object { $_.DisplayName -match $sw }
-    if ($installed) { $thirdParty += $sw }
+$backupKeywords = @("Veeam", "Acronis", "Backup Exec", "Carbonite", "Backblaze", "Macrium", "AOMEI", "EaseUS.*Backup", "Cobian", "Duplicati")
+$regPaths = @(
+    "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
+    "HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+)
+foreach ($keyword in $backupKeywords) {
+    foreach ($path in $regPaths) {
+        $found = Get-ItemProperty $path -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -match $keyword }
+        if ($found) {
+            # Store the actual product DisplayName, not the keyword
+            $thirdParty += ($found | Select-Object -First 1).DisplayName
+            break
+        }
+    }
 }
 
 @{

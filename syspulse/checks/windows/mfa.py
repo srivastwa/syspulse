@@ -77,8 +77,11 @@ class MFACheck(CheckBase):
             findings.append(Finding(
                 id=f"{self.meta.id}-NO-PWD",
                 check_id=self.meta.id,
-                title=f"Local Account(s) With No Password: {names}",
-                description="Local accounts without passwords allow unauthenticated access.",
+                title=f"Local Account(s) Accept Blank Password: {names}",
+                description=(
+                    f"The following accounts accept login with an empty password: {names}. "
+                    "This allows unauthenticated local access and is a critical risk."
+                ),
                 severity=Severity.CRITICAL,
                 status=CheckStatus.FAIL,
                 platform="windows",

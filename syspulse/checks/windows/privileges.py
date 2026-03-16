@@ -86,11 +86,16 @@ class PrivilegesCheck(CheckBase):
             ))
 
         if not findings:
+            admin_names = ", ".join(a.get("name", "?") for a in active_admins)
             findings.append(Finding(
                 id=f"{self.meta.id}-OK",
                 check_id=self.meta.id,
-                title="Local Admin Accounts Within Acceptable Threshold",
-                description=f"{len(active_admins)} active admin account(s) found, within policy.",
+                title=f"Local Admins OK — {len(active_admins)} Account(s): {admin_names}",
+                description=(
+                    f"Found {len(active_admins)} active local administrator account(s): {admin_names}. "
+                    f"Count is within the policy threshold of {_ADMIN_COUNT_THRESHOLD} non-built-in admins "
+                    "and the built-in Administrator account is disabled."
+                ),
                 severity=Severity.INFO,
                 status=CheckStatus.PASS,
                 platform="windows",
