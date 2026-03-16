@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-
 from syspulse.checks.base import CheckBase, CheckMeta
 from syspulse.models.finding import CheckStatus, Evidence, Finding, Severity
 from syspulse.utils.subprocess_runner import SubprocessError, run_powershell_script

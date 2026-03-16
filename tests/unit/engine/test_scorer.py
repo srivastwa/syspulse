@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pytest
 from syspulse.engine.scorer import compute_system_score, _score_to_tier
 from syspulse.engine.evaluator import evaluate_findings
 from syspulse.models.finding import CheckStatus, Finding, Severity

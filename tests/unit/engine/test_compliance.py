@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from syspulse.compliance.mapper import map_compliance
 from syspulse.engine.evaluator import evaluate_findings
-from syspulse.engine.scorer import compute_system_score
 from syspulse.models.finding import CheckStatus, Finding, Severity
 
 

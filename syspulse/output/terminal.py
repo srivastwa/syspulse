@@ -143,7 +143,7 @@ def render_terminal(report: AssessmentReport) -> None:
         f"{sys_info.assessed_at.strftime('%Y-%m-%d %H:%M UTC')}"
     )
     console.print(Panel(header, border_style="blue"))
-    console.print(f"  Overall Risk: ", end="")
+    console.print("  Overall Risk: ", end="")
     console.print(_tier_badge(report.score.tier, report.score.overall))
     console.print()
 

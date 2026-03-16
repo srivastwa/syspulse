@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from syspulse.compliance.loader import FrameworkDefinition, load_all_frameworks
+from syspulse.compliance.loader import load_all_frameworks
 from syspulse.models.compliance import ControlResult, MappingResult
 from syspulse.models.finding import CheckStatus
 from syspulse.models.risk import RuleMatch

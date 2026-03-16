@@ -73,8 +73,8 @@ def _submit_to_eciso(report_json: str) -> None:
         except urllib.error.URLError as exc:
             console.print(f"  [red]✗[/red] Submission failed: {exc.reason}")
             console.print(
-                f"  [dim]Is the eCISO server running? Start it with:[/dim] "
-                f"[cyan]cd server && uvicorn main:app --reload[/cyan]"
+                "  [dim]Is the eCISO server running? Start it with:[/dim] "
+                "[cyan]cd server && uvicorn main:app --reload[/cyan]"
             )
 
 
