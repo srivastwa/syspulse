@@ -19,7 +19,8 @@ class PatchingCheck(CheckBase):
 
     def run(self) -> list[Finding]:
         try:
-            data = run_powershell_script("get_update_status.ps1")
+            # WUA live search can take 60-120s on WSUS/corporate machines
+            data = run_powershell_script("get_update_status.ps1", timeout=120)
         except (SubprocessError, FileNotFoundError) as exc:
             return [_error_finding(self.meta.id, str(exc))]
 
@@ -29,6 +30,26 @@ class PatchingCheck(CheckBase):
         pending = data.get("pending_updates", [])
         critical_pending = [u for u in pending if u.get("is_security", False)]
         days_since = data.get("days_since_last_install", 0) or 0
+        reboot_required = data.get("reboot_required", False)
+        search_timed_out = data.get("search_timed_out", False)
+
+        if reboot_required and not critical_pending:
+            findings.append(Finding(
+                id=f"{self.meta.id}-REBOOT",
+                check_id=self.meta.id,
+                title="Reboot Required to Complete Pending Updates",
+                description=(
+                    "Windows Update has staged patches that require a reboot to complete. "
+                    "The system is not fully patched until it is restarted."
+                ),
+                severity=Severity.MEDIUM,
+                status=CheckStatus.WARNING,
+                platform="windows",
+                category=self.meta.category,
+                evidence=[evidence],
+                remediation_steps=["Restart the machine to finish applying pending updates."],
+                tags=["cis-18.9.108", "nist-si-2"],
+            ))
 
         if critical_pending:
             titles = [u.get("title", "Unknown") for u in critical_pending[:5]]
@@ -71,11 +92,15 @@ class PatchingCheck(CheckBase):
             ))
 
         if not findings:
+            note = " (live update search timed out — result based on cached data)" if search_timed_out else ""
             findings.append(Finding(
                 id=f"{self.meta.id}-OK",
                 check_id=self.meta.id,
                 title="System Patching Up to Date",
-                description=f"No critical pending updates. Last installed {days_since} days ago.",
+                description=(
+                    f"No critical pending updates found. "
+                    f"Last installed {days_since} days ago.{note}"
+                ),
                 severity=Severity.INFO,
                 status=CheckStatus.PASS,
                 platform="windows",
