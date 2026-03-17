@@ -56,8 +56,23 @@ foreach ($hive in @('HKLM:\SOFTWARE\Python\PythonCore', 'HKCU:\Software\Python\P
 
 # ── 3. Windows Store / AppX packages ─────────────────────────────────────────
 try {
+    # Exclude Microsoft system/runtime packages — only keep user-installed Store apps
+    $msSystemPattern = '^Microsoft\.(Windows|VCLibs|NET|DirectX|Gaming|MicrosoftEdge|AAD|Advertising|' +
+        'BingWeather|CredDialogHost|CryptoWinRT|DesktopAppInstaller|ECApp|GamingApp|GetHelp|' +
+        'HEIFImageExtension|Messaging|MixedReality|MoCamera|MSPaint|Narraton|Office|OneDriveSync|' +
+        'OneNote|Paint|People|ScreenSketch|SecHealthUI|Services|SkypeApp|StorePurchaseApp|' +
+        'Todos|UI\.Xaml|VP9|WebMediaExtensions|WebpImageExtension|Win32WebViewHost|' +
+        'Windows\.Photos|WindowsAlarms|WindowsCalculator|WindowsCamera|WindowsMaps|' +
+        'WindowsNotepad|WindowsSoundRecorder|WindowsTerminal|Xbox|YourPhone|ZuneMusic|ZuneVideo)'
+    $skipPublishers = @('Microsoft Corporation', 'CN=Microsoft Corporation')
+
     Get-AppxPackage -AllUsers -ErrorAction SilentlyContinue |
-        Where-Object { $_.SignatureKind -ne 'System' -and $_.Name -notmatch '^Microsoft\.(Windows|VCLibs|NET|DirectX|Gaming|MicrosoftEdge\.Stable)' } |
+        Where-Object {
+            $_.SignatureKind -ne 'System' -and
+            $_.Name -notmatch $msSystemPattern -and
+            # Skip packages whose internal name is a GUID-like framework package
+            $_.Name -notmatch '^[0-9A-Fa-f]{8}-'
+        } |
         ForEach-Object {
             # Use display name from manifest if available, else package name
             $displayName = try {
@@ -67,6 +82,9 @@ try {
                 $displayName = $_.Name
             }
             $displayName = $displayName.Trim()
+            # Skip if display name still looks like a package ID or is blank
+            if (-not $displayName -or $displayName -match '^[A-Za-z0-9]{32}$') { return }
+
             if ($seen.Add($displayName)) {
                 $software.Add(@{
                     name         = $displayName
