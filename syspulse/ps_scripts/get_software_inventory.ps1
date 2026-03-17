@@ -178,16 +178,23 @@ try {
     $winget = Get-Command winget -ErrorAction SilentlyContinue
     if ($winget) {
         $wgOut = winget list --accept-source-agreements 2>$null
-        # Parse the tabular output: skip header lines until dashes row, then parse entries
+        # Parse the tabular output: skip header lines until dashes row, then parse entries.
+        # Winget emits Unicode progress-bar characters (block elements U+2580-U+259F, U+25A0-U+25FF)
+        # to stdout — filter those lines out before parsing.
         $inData = $false
         foreach ($line in ($wgOut -split "`n")) {
+            # Skip winget progress/spinner lines (contain Unicode block-drawing chars)
+            if ($line -match '[\u2500-\u259F\u25A0-\u25FF\u2800-\u28FF]') { continue }
             if ($line -match '^[-\s]+$') { $inData = $true; continue }
             if (-not $inData) { continue }
-            if ($line.Trim() -eq '') { continue }
+            $line = $line.Trim()
+            if ($line -eq '') { continue }
             # Columns: Name, Id, Version, Available, Source  (fixed-width)
-            # Just grab Name (first column up to two or more spaces)
+            # Grab Name = first column (up to two or more spaces)
             if ($line -match '^(.+?)\s{2,}') {
                 $name = $Matches[1].Trim()
+                # Skip if name still contains non-printable or box-drawing characters
+                if ($name -match '[^\x20-\x7E]') { continue }
                 if ($name -and $seen.Add($name)) {
                     $software.Add(@{
                         name         = $name
