@@ -114,12 +114,34 @@ try {
         ForEach-Object { $arpTable[$_.IPAddress] = $_.LinkLayerAddress }
 } catch {}
 
-$hosts = [System.Collections.Generic.List[hashtable]]::new()
+# ── Port definitions (used for all hosts) ─────────────────────────────────────
+$portDefs = [ordered]@{
+    21   = 'FTP';        22   = 'SSH';         23   = 'Telnet'
+    25   = 'SMTP';       53   = 'DNS';          80   = 'HTTP'
+    88   = 'Kerberos';   110  = 'POP3';         111  = 'RPC'
+    135  = 'MS-RPC';     139  = 'NetBIOS';      143  = 'IMAP'
+    389  = 'LDAP';       443  = 'HTTPS';        445  = 'SMB'
+    465  = 'SMTPS';      514  = 'Syslog';       548  = 'AFP'
+    554  = 'RTSP';       587  = 'SMTP-TLS';     631  = 'IPP'
+    636  = 'LDAPS';      873  = 'rsync';        993  = 'IMAPS'
+    995  = 'POP3S';      1433 = 'MSSQL';        1521 = 'Oracle'
+    2049 = 'NFS';        2375 = 'Docker';       2376 = 'Docker-TLS'
+    3000 = 'Dev-HTTP';   3306 = 'MySQL';        3389 = 'RDP'
+    5432 = 'PostgreSQL'; 5900 = 'VNC';          5985 = 'WinRM'
+    5986 = 'WinRM-HTTPS';6379 = 'Redis';        6443 = 'Kubernetes'
+    8080 = 'HTTP-Proxy'; 8443 = 'HTTPS-Alt';    8888 = 'Jupyter'
+    9200 = 'Elasticsearch'; 9418 = 'Git';       10250= 'Kubelet'
+    11211= 'Memcached';  27017= 'MongoDB';       27018= 'MongoDB-Shard'
+}
+$portList = @($portDefs.Keys | Sort-Object)
+
+$hosts     = [System.Collections.Generic.List[hashtable]]::new()
+$liveHosts = [System.Collections.Generic.List[hashtable]]::new()
 
 foreach ($subnet in $subnets) {
     $ips = 1..254 | ForEach-Object { "$subnet.$_" }
 
-    # ── Async ping all 254 IPs simultaneously ─────────────────────────────────
+    # ── Phase 1: Async ping all 254 IPs simultaneously ────────────────────────
     $pingers   = @{}
     $pingTasks = @{}
     foreach ($ip in $ips) {
@@ -128,11 +150,10 @@ foreach ($subnet in $subnets) {
         $pingTasks[$ip] = $p.SendPingAsync($ip, 1500)
     }
 
-    # Wait up to 3 seconds for all pings to complete
     $taskArray = @($pingTasks.Values)
     try { [System.Threading.Tasks.Task]::WaitAll($taskArray, 3000) } catch {}
 
-    # Flush ARP cache now (pings will have populated it for live hosts)
+    # Refresh ARP table after pings
     try {
         Get-NetNeighbor -AddressFamily IPv4 -ErrorAction SilentlyContinue |
             Where-Object { $_.State -ne 'Unreachable' -and
@@ -145,126 +166,114 @@ foreach ($subnet in $subnets) {
             }
     } catch {}
 
+    # Collect live hosts for this subnet
     foreach ($ip in $ips) {
-        $task = $pingTasks[$ip]
+        $task  = $pingTasks[$ip]
         if (-not $task.IsCompleted) { continue }
         $reply = try { $task.Result } catch { $null }
         if (-not $reply -or $reply.Status -ne [System.Net.NetworkInformation.IPStatus]::Success) { continue }
 
         $ttl = try { $reply.Options.Ttl } catch { 0 }
         $rtt = $reply.RoundtripTime
+        $mac = $arpTable[$ip]
 
-        # ── NetBIOS name (UDP/137, 500 ms) — gives real computer name on Windows ──
-        $netbiosName = Get-NBNSName -IP $ip -TimeoutMs 500
-
-        # ── Hostname via reverse DNS — fall back to NetBIOS name ───────────────
-        $hostname = try { [System.Net.Dns]::GetHostEntry($ip).HostName } catch { $null }
-        if (-not $hostname -and $netbiosName) { $hostname = $netbiosName }
-
-        # ── MAC + vendor ───────────────────────────────────────────────────────
-        $mac    = $arpTable[$ip]
-        $vendor = Get-OUIVendor $mac
-
-        # ── Full async port scan — all ports fired simultaneously ─────────────
-        $portDefs = [ordered]@{
-            21   = 'FTP';        22   = 'SSH';         23   = 'Telnet'
-            25   = 'SMTP';       53   = 'DNS';          69   = 'TFTP'
-            80   = 'HTTP';       88   = 'Kerberos';     110  = 'POP3'
-            111  = 'RPC';        119  = 'NNTP';         123  = 'NTP'
-            135  = 'MS-RPC';     137  = 'NetBIOS-NS';   139  = 'NetBIOS'
-            143  = 'IMAP';       161  = 'SNMP';         389  = 'LDAP'
-            443  = 'HTTPS';      445  = 'SMB';          465  = 'SMTPS'
-            514  = 'Syslog';     515  = 'LPD';          548  = 'AFP'
-            554  = 'RTSP';       587  = 'SMTP-TLS';     631  = 'IPP'
-            636  = 'LDAPS';      873  = 'rsync';        993  = 'IMAPS'
-            995  = 'POP3S';      1080 = 'SOCKS';        1194 = 'OpenVPN'
-            1433 = 'MSSQL';      1521 = 'Oracle';       1723 = 'PPTP'
-            2049 = 'NFS';        2375 = 'Docker';       2376 = 'Docker-TLS'
-            3000 = 'Dev-HTTP';   3306 = 'MySQL';        3389 = 'RDP'
-            3690 = 'SVN';        4369 = 'RabbitMQ';     5432 = 'PostgreSQL'
-            5900 = 'VNC';        5985 = 'WinRM';        5986 = 'WinRM-HTTPS'
-            6379 = 'Redis';      6443 = 'Kubernetes';   7070 = 'HTTP-Alt'
-            8080 = 'HTTP-Proxy'; 8443 = 'HTTPS-Alt';    8888 = 'Jupyter'
-            9090 = 'HTTP-Alt2';  9200 = 'Elasticsearch';9300 = 'ES-Cluster'
-            9418 = 'Git';        10250= 'Kubelet';      11211= 'Memcached'
-            27017= 'MongoDB';    27018= 'MongoDB-Shard';49152= 'WinRPC-Dyn'
-        }
-
-        # Fire all TCP connects simultaneously using ConnectAsync
-        $tcpClients = @{}
-        $connTasks  = @{}
-        foreach ($port in $portDefs.Keys) {
-            try {
-                $tcp = New-Object System.Net.Sockets.TcpClient
-                $tcpClients[$port] = $tcp
-                $connTasks[$port]  = $tcp.ConnectAsync($ip, $port)
-            } catch {}
-        }
-
-        # Wait up to 1 second for all port connects
-        $taskArr = @($connTasks.Values | Where-Object { $_ -ne $null })
-        try { [System.Threading.Tasks.Task]::WaitAll($taskArr, 1000) } catch {}
-
-        $openPorts = [System.Collections.Generic.List[int]]::new()
-        $services  = [System.Collections.Generic.List[string]]::new()
-
-        foreach ($port in ($portDefs.Keys | Sort-Object)) {
-            $task = $connTasks[$port]
-            $tcp  = $tcpClients[$port]
-            if ($task -and $task.IsCompleted -and -not $task.IsFaulted -and
-                $tcp -and $tcp.Connected) {
-                $openPorts.Add([int]$port)
-                $services.Add("$port/$($portDefs[$port])")
-            }
-            try { $tcp.Close() } catch {}
-        }
-
-        # ── OS fingerprint: ports (high confidence) then TTL (low) ────────────
-        $osGuess      = 'Unknown'
-        $osConfidence = 'low'
-
-        if (445 -in $openPorts -or 3389 -in $openPorts -or 5985 -in $openPorts -or 135 -in $openPorts) {
-            $osGuess = 'Windows'; $osConfidence = 'high'
-        } elseif (548 -in $openPorts) {
-            $osGuess = 'macOS'; $osConfidence = 'high'
-        } elseif (22 -in $openPorts -and 445 -notin $openPorts) {
-            $osGuess = if ($ttl -le 70) { 'Linux' } else { 'Linux/macOS' }
-            $osConfidence = 'medium'
-        } elseif (5353 -in $openPorts -and 445 -notin $openPorts) {
-            $osGuess = 'Linux/macOS'; $osConfidence = 'medium'
-        } elseif ($ttl -gt 100 -and $ttl -le 128) {
-            $osGuess = 'Windows'; $osConfidence = 'low'
-        } elseif ($ttl -gt 0 -and $ttl -le 70) {
-            $osGuess = 'Linux/macOS'; $osConfidence = 'low'
-        } elseif ($ttl -gt 200) {
-            $osGuess = 'Network Device'; $osConfidence = 'medium'
-        }
-
-        # macOS via vendor even without AFP open
-        if ($osGuess -eq 'Unknown' -and $vendor -eq 'Apple') {
-            $osGuess = 'macOS'; $osConfidence = 'low'
-        }
-
-        # NetBIOS response is definitive — only Windows responds to NBNS node-status
-        if ($netbiosName) {
-            $osGuess = 'Windows'; $osConfidence = 'high'
-        }
-
-        $hosts.Add(@{
-            ip               = $ip
-            hostname         = $hostname
-            netbios_name     = $netbiosName
-            mac_address      = $mac
-            vendor           = $vendor
-            os_guess         = $osGuess
-            os_confidence    = $osConfidence
-            open_ports       = @($openPorts)
-            services         = @($services)
-            is_local         = $myIPs.Contains($ip)
-            response_time_ms = [int]$rtt
-            ttl              = $ttl
+        $liveHosts.Add(@{
+            ip      = $ip
+            ttl     = $ttl
+            rtt     = [int]$rtt
+            mac     = $mac
+            vendor  = Get-OUIVendor $mac
         })
     }
+}
+
+# ── Phase 2: Fire ALL port connects for ALL live hosts simultaneously ──────────
+# Using BeginConnect + WaitHandle (reliable on PS 5.1 / .NET Framework 4.x)
+# Each entry: @{ ip; port; tcp; ar }
+$scanOps = [System.Collections.Generic.List[hashtable]]::new()
+
+foreach ($h in $liveHosts) {
+    foreach ($port in $portList) {
+        try {
+            $tcp = New-Object System.Net.Sockets.TcpClient
+            $ar  = $tcp.BeginConnect($h.ip, $port, $null, $null)
+            $scanOps.Add(@{ ip=$h.ip; port=$port; tcp=$tcp; ar=$ar })
+        } catch {}
+    }
+}
+
+# Single shared wait — 1200 ms covers all hosts × all ports simultaneously
+Start-Sleep -Milliseconds 1200
+
+# ── Phase 3: Collect port results and build host records ──────────────────────
+# Group results by IP
+$portsByIp = @{}
+foreach ($op in $scanOps) {
+    $ip   = $op.ip
+    $port = $op.port
+    $open = $false
+    try {
+        if ($op.ar.IsCompleted -and $op.tcp.Connected) { $open = $true }
+    } catch {}
+    try { $op.tcp.Close() } catch {}
+
+    if ($open) {
+        if (-not $portsByIp.ContainsKey($ip)) { $portsByIp[$ip] = [System.Collections.Generic.List[int]]::new() }
+        $portsByIp[$ip].Add($port)
+    }
+}
+
+foreach ($h in $liveHosts) {
+    $ip  = $h.ip
+    $ttl = $h.ttl
+
+    # ── NetBIOS + DNS ──────────────────────────────────────────────────────────
+    $netbiosName = Get-NBNSName -IP $ip -TimeoutMs 500
+    $hostname    = try { [System.Net.Dns]::GetHostEntry($ip).HostName } catch { $null }
+    if (-not $hostname -and $netbiosName) { $hostname = $netbiosName }
+
+    # ── Open ports & services ──────────────────────────────────────────────────
+    $openPorts = @($portsByIp[$ip] | Sort-Object)
+    $services  = @($openPorts | ForEach-Object { "$_/$($portDefs[$_])" })
+
+    # ── OS fingerprint ─────────────────────────────────────────────────────────
+    $osGuess      = 'Unknown'
+    $osConfidence = 'low'
+
+    if (445 -in $openPorts -or 3389 -in $openPorts -or 5985 -in $openPorts -or 135 -in $openPorts) {
+        $osGuess = 'Windows'; $osConfidence = 'high'
+    } elseif (548 -in $openPorts) {
+        $osGuess = 'macOS'; $osConfidence = 'high'
+    } elseif (22 -in $openPorts -and 445 -notin $openPorts) {
+        $osGuess = if ($ttl -le 70) { 'Linux' } else { 'Linux/macOS' }
+        $osConfidence = 'medium'
+    } elseif ($ttl -gt 100 -and $ttl -le 128) {
+        $osGuess = 'Windows'; $osConfidence = 'low'
+    } elseif ($ttl -gt 0 -and $ttl -le 70) {
+        $osGuess = 'Linux/macOS'; $osConfidence = 'low'
+    } elseif ($ttl -gt 200) {
+        $osGuess = 'Network Device'; $osConfidence = 'medium'
+    }
+
+    if ($osGuess -eq 'Unknown' -and $h.vendor -eq 'Apple') {
+        $osGuess = 'macOS'; $osConfidence = 'low'
+    }
+    if ($netbiosName) { $osGuess = 'Windows'; $osConfidence = 'high' }
+
+    $hosts.Add(@{
+        ip               = $ip
+        hostname         = $hostname
+        netbios_name     = $netbiosName
+        mac_address      = $h.mac
+        vendor           = $h.vendor
+        os_guess         = $osGuess
+        os_confidence    = $osConfidence
+        open_ports       = $openPorts
+        services         = $services
+        is_local         = $myIPs.Contains($ip)
+        response_time_ms = $h.rtt
+        ttl              = $ttl
+    })
 }
 
 @{ hosts = @($hosts | Sort-Object { [version]$_['ip'] }) } | ConvertTo-Json -Depth 4

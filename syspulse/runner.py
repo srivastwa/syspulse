@@ -139,6 +139,13 @@ def run_assessment(dry_run: bool = False) -> AssessmentReport:
             from syspulse.inventory.collector import collect_inventory
             inventory = collect_inventory()
 
+        with console.status(
+            "[bold blue]SysPulse[/bold blue]  Scanning local network (this may take ~30s)…",
+            spinner="dots",
+        ):
+            from syspulse.inventory.collector import collect_network_scan
+            collect_network_scan(inventory)
+
     console.print()
 
     return AssessmentReport(

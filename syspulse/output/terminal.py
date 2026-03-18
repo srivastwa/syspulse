@@ -186,6 +186,24 @@ def _inventory_panel(report: AssessmentReport) -> Panel:
             text.append(f"{br.title()}: {count}  ")
         text.append("\n")
 
+    if inv.network_hosts:
+        text.append(f"  Net   ", style="dim")
+        text.append(f"{len(inv.network_hosts)} hosts discovered\n")
+        for h in inv.network_hosts[:8]:
+            label = h.hostname or h.netbios_name or h.ip
+            os_tag = f"[{h.os_guess}]" if h.os_guess != "Unknown" else ""
+            ports_tag = f"  {len(h.open_ports)} ports" if h.open_ports else ""
+            local_tag = " (this machine)" if h.is_local else ""
+            text.append(f"    {h.ip:<16}", style="dim")
+            text.append(f"  {label}")
+            if os_tag:
+                text.append(f"  {os_tag}", style="cyan")
+            if ports_tag:
+                text.append(ports_tag, style="dim")
+            text.append(f"{local_tag}\n", style="green bold" if h.is_local else "")
+        if len(inv.network_hosts) > 8:
+            text.append(f"    … and {len(inv.network_hosts) - 8} more\n", style="dim")
+
     return Panel(text, title="System Inventory", border_style="blue", expand=False)
 
 

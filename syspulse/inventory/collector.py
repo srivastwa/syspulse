@@ -145,8 +145,19 @@ def collect_inventory() -> SystemInventory:
         except Exception:
             pass
 
-    # ── Network scan ─────────────────────────────────────────────────────────
-    # Allow up to 90s: async pings ~3s + port checks ~300ms × ports × live hosts
+    log.info(
+        "inventory collected",
+        software=len(inv.software),
+        extensions=len(inv.browser_extensions),
+        users=len(inv.user_accounts),
+        disks=len(inv.disks),
+    )
+    return inv
+
+
+def collect_network_scan(inv: SystemInventory) -> None:
+    """Run the network scan and append results to an existing SystemInventory. Never raises."""
+    # Allow up to 90s: async pings ~3s + port checks ~1.2s shared across all live hosts × ports
     ns = _safe_run("get_network_scan.ps1", timeout=90)
 
     for h in ns.get("hosts") or []:
@@ -158,12 +169,4 @@ def collect_inventory() -> SystemInventory:
         except Exception:
             pass
 
-    log.info(
-        "inventory collected",
-        software=len(inv.software),
-        extensions=len(inv.browser_extensions),
-        users=len(inv.user_accounts),
-        disks=len(inv.disks),
-        network_hosts=len(inv.network_hosts),
-    )
-    return inv
+    log.info("network scan complete", network_hosts=len(inv.network_hosts))
