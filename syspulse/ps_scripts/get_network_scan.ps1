@@ -151,7 +151,7 @@ foreach ($subnet in $subnets) {
     }
 
     $taskArray = @($pingTasks.Values)
-    try { [System.Threading.Tasks.Task]::WaitAll($taskArray, 3000) } catch {}
+    try { [void][System.Threading.Tasks.Task]::WaitAll($taskArray, 3000) } catch {}
 
     # Refresh ARP table after pings
     try {
