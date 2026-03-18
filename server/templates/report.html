@@ -602,17 +602,22 @@
 
     <!-- Browser Extensions -->
     {% if inv.get('browser_extensions') %}
-    <p class="section-heading">Browser Extensions ({{ inv['browser_extensions']|length }})</p>
+    <p class="section-heading">Browser Extensions ({{ inv['browser_extensions']|length }} across all profiles)</p>
     {% set browsers = inv['browser_extensions']|map(attribute='browser')|unique|sort|list %}
     {% for browser in browsers %}
-    {% set exts = inv['browser_extensions']|selectattr('browser','equalto',browser)|list %}
+    {% set browser_exts = inv['browser_extensions']|selectattr('browser','equalto',browser)|list %}
     <details style="margin-bottom:.5rem;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
-      <summary style="background:var(--surface);padding:.75rem 1.2rem;">{{ browser|title }} — {{ exts|length }} extension{{ 's' if exts|length != 1 else '' }}</summary>
-      <div class="card" style="margin:0;border-radius:0;border:none;">
+      <summary style="background:var(--surface);padding:.75rem 1.2rem;">{{ browser|title }} — {{ browser_exts|length }} extension{{ 's' if browser_exts|length != 1 else '' }}</summary>
+      {% set profiles = browser_exts|map(attribute='profile')|unique|sort|list %}
+      {% for profile in profiles %}
+      <div style="padding:.4rem 1.2rem;background:var(--bg);font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)">
+        {{ profile or 'Default' }} — {{ browser_exts|selectattr('profile','equalto',profile)|list|length }} extension{{ 's' if browser_exts|selectattr('profile','equalto',profile)|list|length != 1 else '' }}
+      </div>
+      <div class="card" style="margin:0;border-radius:0;border:none;border-bottom:1px solid var(--border);">
         <table>
           <thead><tr><th>Name</th><th>Version</th><th>Extension ID</th><th>Enabled</th><th>Description</th></tr></thead>
           <tbody>
-          {% for e in exts|sort(attribute='name') %}
+          {% for e in browser_exts|selectattr('profile','equalto',profile)|sort(attribute='name') %}
           <tr>
             <td>{{ e.get('name','—') }}</td>
             <td style="color:var(--muted);font-size:.8rem;white-space:nowrap">{{ e.get('version','—') or '—' }}</td>
@@ -624,6 +629,7 @@
           </tbody>
         </table>
       </div>
+      {% endfor %}
     </details>
     {% endfor %}
     {% endif %}

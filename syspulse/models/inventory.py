@@ -110,6 +110,7 @@ class LocalUser(BaseModel):
 
 class BrowserExtension(BaseModel):
     browser: str
+    profile: Optional[str] = None
     extension_id: str
     name: str
     version: Optional[str] = None

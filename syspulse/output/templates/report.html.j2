@@ -513,16 +513,22 @@ summary:hover{background:#1a2234}
 
   <!-- ── Browser Extensions ───────────────────────────────────────────── -->
   {% if inv.browser_extensions %}
-  <h2>Browser Extensions ({{ inv.browser_extensions|length }})</h2>
+  <h2>Browser Extensions ({{ inv.browser_extensions|length }} across all profiles)</h2>
   {% set browsers = inv.browser_extensions|map(attribute='browser')|unique|sort|list %}
   {% for browser in browsers %}
-  {% set exts = inv.browser_extensions|selectattr('browser','equalto',browser)|list %}
+  {% set browser_exts = inv.browser_extensions|selectattr('browser','equalto',browser)|list %}
   <details>
-    <summary>{{ browser|title }} — {{ exts|length }} extension{{ 's' if exts|length != 1 else '' }}</summary>
+    <summary>{{ browser|title }} — {{ browser_exts|length }} extension{{ 's' if browser_exts|length != 1 else '' }}</summary>
+    {% set profiles = browser_exts|map(attribute='profile')|unique|sort|list %}
+    {% for profile in profiles %}
+    {% set profile_exts = browser_exts|selectattr('profile','equalto',profile)|list %}
+    <div style="padding:.4rem 1rem .2rem;background:#111827;font-size:.75rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #1f2937">
+      {{ profile or 'Default' }} — {{ profile_exts|length }} extension{{ 's' if profile_exts|length != 1 else '' }}
+    </div>
     <table>
       <thead><tr><th>Name</th><th>Version</th><th>Extension ID</th><th>Enabled</th><th>Description</th></tr></thead>
       <tbody>
-      {% for e in exts|sort(attribute='name') %}
+      {% for e in profile_exts|sort(attribute='name') %}
       <tr>
         <td>{{ e.name }}</td>
         <td style="color:#6b7280;font-size:.8rem;white-space:nowrap">{{ e.version or '—' }}</td>
@@ -533,6 +539,7 @@ summary:hover{background:#1a2234}
       {% endfor %}
       </tbody>
     </table>
+    {% endfor %}
   </details>
   {% endfor %}
   {% endif %}
