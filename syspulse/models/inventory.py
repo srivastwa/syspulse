@@ -120,6 +120,7 @@ class BrowserExtension(BaseModel):
 class NetworkHost(BaseModel):
     ip: str
     hostname: Optional[str] = None
+    netbios_name: Optional[str] = None
     mac_address: Optional[str] = None
     vendor: Optional[str] = None
     os_guess: str = "Unknown"

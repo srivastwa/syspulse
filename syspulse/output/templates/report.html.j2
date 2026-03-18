@@ -303,13 +303,17 @@ summary:hover{background:#1a2234}
     <div class="summary-card"><div class="count" style="color:#fbbf24">{{ net_count }}</div><div class="label">Network Device</div></div>
   </div>
   <table>
-    <thead><tr><th>IP Address</th><th>Hostname</th><th>OS</th><th>Confidence</th><th>MAC Address</th><th>Vendor</th><th>Services Detected</th><th>RTT</th></tr></thead>
+    <thead><tr><th>IP Address</th><th>Hostname / NetBIOS</th><th>OS</th><th>Confidence</th><th>MAC Address</th><th>Vendor</th><th>Services Detected</th><th>RTT</th></tr></thead>
     <tbody>
     {% for h in inv.network_hosts %}
     {% set os_color = '#93c5fd' if h.os_guess == 'Windows' else '#86efac' if h.os_guess == 'Linux' else '#d1d5db' if h.os_guess == 'macOS' else '#6ee7b7' if h.os_guess == 'Linux/macOS' else '#fbbf24' if h.os_guess == 'Network Device' else '#6b7280' %}
     <tr{% if h.is_local %} style="background:#1a2234"{% endif %}>
       <td style="font-family:monospace;font-weight:600">{{ h.ip }}{% if h.is_local %} <span style="color:#60a5fa;font-size:.7rem">(this machine)</span>{% endif %}</td>
-      <td style="color:#9ca3af;font-size:.82rem">{{ h.hostname or '—' }}</td>
+      <td style="font-size:.82rem">
+        {% if h.hostname %}<span style="color:#9ca3af">{{ h.hostname }}</span>{% endif %}
+        {% if h.netbios_name and h.netbios_name != h.hostname %}<br><span style="font-family:monospace;font-size:.75rem;color:#60a5fa" title="NetBIOS">{{ h.netbios_name }}</span>{% endif %}
+        {% if not h.hostname and not h.netbios_name %}—{% endif %}
+      </td>
       <td><span style="font-weight:700;font-size:.8rem;color:{{ os_color }}">{{ h.os_guess }}</span></td>
       <td style="font-size:.75rem;color:#6b7280">{{ h.os_confidence }}</td>
       <td style="font-family:monospace;font-size:.75rem;color:#6b7280">{{ h.mac_address or '—' }}</td>

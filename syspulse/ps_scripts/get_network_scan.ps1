@@ -29,6 +29,64 @@ function Get-OUIVendor([string]$mac) {
     return $ouiMap[$normalized.Substring(0,8)]
 }
 
+# ── NetBIOS Name Service (NBNS) query via UDP/137 ─────────────────────────────
+# Sends a single UDP node-status request and parses the response.
+# Much faster than nbtstat: one packet, 500 ms timeout, no child process.
+function Get-NBNSName([string]$IP, [int]$TimeoutMs = 500) {
+    $udp = $null
+    try {
+        # Node Status Request packet (RFC 1002)
+        # Encoded wildcard name: '*' (0x2A) → nibbles C,K then 15× null → nibbles A,A
+        $packet = [byte[]]@(
+            0xAB, 0xCD,              # Transaction ID (arbitrary)
+            0x00, 0x00,              # Flags: query, non-recursive
+            0x00, 0x01,              # QDCOUNT = 1
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  # AN/NS/AR = 0
+            0x20,                    # Name length = 32
+            # Encoded '*\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0' (16 bytes → 32 nibble pairs)
+            0x43, 0x4B,              # '*' = 0x2A → C(0x43) K(0x4B)
+            0x41, 0x41, 0x41, 0x41, 0x41, 0x41,  # six null bytes
+            0x41, 0x41, 0x41, 0x41, 0x41, 0x41,  # six null bytes
+            0x41, 0x41, 0x41, 0x41, 0x41, 0x41,  # six null bytes
+            0x41, 0x41, 0x41, 0x41, 0x41, 0x41,  # six null bytes
+            0x41, 0x41, 0x41, 0x41, 0x41, 0x41,  # six null bytes (total 30 = 15 nulls)
+            0x00,                    # Name terminator
+            0x00, 0x21,              # QTYPE = NBSTAT (0x21)
+            0x00, 0x01               # QCLASS = IN
+        )
+
+        $udp = New-Object System.Net.Sockets.UdpClient
+        $udp.Client.ReceiveTimeout = $TimeoutMs
+        $ep  = [System.Net.IPEndPoint]::new([System.Net.IPAddress]::Parse($IP), 137)
+        [void]$udp.Send($packet, $packet.Length, $ep)
+
+        $remoteEP = [System.Net.IPEndPoint]::new([System.Net.IPAddress]::Any, 0)
+        $resp = $udp.Receive([ref]$remoteEP)
+
+        # Response layout (RFC 1002 §4.2.18):
+        # 56 bytes of header/question echo, then 1 byte NUM_NAMES, then 18-byte records
+        if ($resp.Length -lt 57) { return $null }
+
+        $numNames = $resp[56]
+        for ($i = 0; $i -lt $numNames; $i++) {
+            $off = 57 + ($i * 18)
+            if ($off + 17 -ge $resp.Length) { break }
+            # Bytes 0-14: name (space-padded), byte 15: suffix, bytes 16-17: flags
+            $flags   = [System.BitConverter]::ToUInt16($resp[$off+17], $resp[$off+16]) # big-endian
+            $flags   = ([int]$resp[$off+16] -shl 8) -bor [int]$resp[$off+17]
+            $isGroup = ($flags -band 0x8000) -ne 0
+            $suffix  = $resp[$off+15]
+            # Suffix 0x00 = workstation name, not a group → this is the computer name
+            if ($suffix -eq 0x00 -and -not $isGroup) {
+                $nameBytes = $resp[$off..($off+14)]
+                return [System.Text.Encoding]::ASCII.GetString($nameBytes).TrimEnd(' ', [char]0x00)
+            }
+        }
+        return $null
+    } catch { return $null }
+    finally { try { $udp.Close() } catch {} }
+}
+
 # ── Find local IPv4 subnets (skip loopback and APIPA) ─────────────────────────
 $localAddrs = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
     Where-Object {
@@ -96,8 +154,12 @@ foreach ($subnet in $subnets) {
         $ttl = try { $reply.Options.Ttl } catch { 0 }
         $rtt = $reply.RoundtripTime
 
-        # ── Hostname via reverse DNS ───────────────────────────────────────────
+        # ── NetBIOS name (UDP/137, 500 ms) — gives real computer name on Windows ──
+        $netbiosName = Get-NBNSName -IP $ip -TimeoutMs 500
+
+        # ── Hostname via reverse DNS — fall back to NetBIOS name ───────────────
         $hostname = try { [System.Net.Dns]::GetHostEntry($ip).HostName } catch { $null }
+        if (-not $hostname -and $netbiosName) { $hostname = $netbiosName }
 
         # ── MAC + vendor ───────────────────────────────────────────────────────
         $mac    = $arpTable[$ip]
@@ -155,9 +217,15 @@ foreach ($subnet in $subnets) {
             $osGuess = 'macOS'; $osConfidence = 'low'
         }
 
+        # NetBIOS response is definitive — only Windows responds to NBNS node-status
+        if ($netbiosName) {
+            $osGuess = 'Windows'; $osConfidence = 'high'
+        }
+
         $hosts.Add(@{
             ip               = $ip
             hostname         = $hostname
+            netbios_name     = $netbiosName
             mac_address      = $mac
             vendor           = $vendor
             os_guess         = $osGuess
