@@ -365,7 +365,7 @@
     </div>
     <div class="card" style="margin-bottom:1.5rem;">
       <table>
-        <thead><tr><th>IP Address</th><th>Hostname / NetBIOS</th><th>OS</th><th>Confidence</th><th>MAC Address</th><th>Vendor</th><th>Services</th><th>RTT</th></tr></thead>
+        <thead><tr><th>IP Address</th><th>Hostname / NetBIOS</th><th>OS</th><th>MAC / Vendor</th><th>Open Ports &amp; Services</th><th>RTT</th></tr></thead>
         <tbody>
         {% for h in nh %}
         {% set og = h.get('os_guess','Unknown') %}
@@ -377,11 +377,19 @@
             {% if h.get('netbios_name') and h.get('netbios_name') != h.get('hostname') %}<br><span style="font-family:monospace;font-size:.75rem;color:var(--accent)" title="NetBIOS">{{ h['netbios_name'] }}</span>{% endif %}
             {% if not h.get('hostname') and not h.get('netbios_name') %}—{% endif %}
           </td>
-          <td><span style="font-weight:700;font-size:.8rem;color:{{ os_color }}">{{ og }}</span></td>
-          <td style="font-size:.75rem;color:var(--muted)">{{ h.get('os_confidence','—') }}</td>
-          <td style="font-family:monospace;font-size:.75rem;color:var(--muted)">{{ h.get('mac_address','—') or '—' }}</td>
-          <td style="font-size:.8rem;color:var(--muted)">{{ h.get('vendor','—') or '—' }}</td>
-          <td style="font-size:.78rem">{{ h.get('services',[])|join(', ') or '—' }}</td>
+          <td>
+            <span style="font-weight:700;font-size:.8rem;color:{{ os_color }}">{{ og }}</span>
+            <span style="display:block;font-size:.7rem;color:var(--muted)">{{ h.get('os_confidence','') }} confidence</span>
+          </td>
+          <td style="font-size:.78rem;color:var(--muted)">
+            {{ h.get('mac_address','—') or '—' }}<br>
+            {% if h.get('vendor') %}<span style="color:var(--text)">{{ h['vendor'] }}</span>{% endif %}
+          </td>
+          <td>
+            {% for svc in h.get('services',[]) %}
+              <span style="display:inline-block;margin:.1rem .1rem .1rem 0;padding:.15rem .4rem;background:var(--surface2);border:1px solid var(--border);border-radius:3px;font-family:monospace;font-size:.7rem;color:var(--muted);white-space:nowrap">{{ svc }}</span>
+            {% else %}—{% endfor %}
+          </td>
           <td style="font-size:.78rem;color:var(--muted);white-space:nowrap">{{ (h['response_time_ms']|string + ' ms') if h.get('response_time_ms') is not none else '—' }}</td>
         </tr>
         {% endfor %}

@@ -165,37 +165,65 @@ foreach ($subnet in $subnets) {
         $mac    = $arpTable[$ip]
         $vendor = Get-OUIVendor $mac
 
-        # ── Port checks (300 ms timeout each) — key service fingerprints ───────
+        # ── Full async port scan — all ports fired simultaneously ─────────────
         $portDefs = [ordered]@{
-            445  = 'SMB'       # Windows file sharing
-            3389 = 'RDP'       # Windows Remote Desktop
-            5985 = 'WinRM'     # Windows Remote Management
-            22   = 'SSH'       # Linux / macOS
-            548  = 'AFP'       # macOS file sharing
-            5353 = 'mDNS'      # Bonjour (macOS/Linux)
-            80   = 'HTTP'
-            443  = 'HTTPS'
+            21   = 'FTP';        22   = 'SSH';         23   = 'Telnet'
+            25   = 'SMTP';       53   = 'DNS';          69   = 'TFTP'
+            80   = 'HTTP';       88   = 'Kerberos';     110  = 'POP3'
+            111  = 'RPC';        119  = 'NNTP';         123  = 'NTP'
+            135  = 'MS-RPC';     137  = 'NetBIOS-NS';   139  = 'NetBIOS'
+            143  = 'IMAP';       161  = 'SNMP';         389  = 'LDAP'
+            443  = 'HTTPS';      445  = 'SMB';          465  = 'SMTPS'
+            514  = 'Syslog';     515  = 'LPD';          548  = 'AFP'
+            554  = 'RTSP';       587  = 'SMTP-TLS';     631  = 'IPP'
+            636  = 'LDAPS';      873  = 'rsync';        993  = 'IMAPS'
+            995  = 'POP3S';      1080 = 'SOCKS';        1194 = 'OpenVPN'
+            1433 = 'MSSQL';      1521 = 'Oracle';       1723 = 'PPTP'
+            2049 = 'NFS';        2375 = 'Docker';       2376 = 'Docker-TLS'
+            3000 = 'Dev-HTTP';   3306 = 'MySQL';        3389 = 'RDP'
+            3690 = 'SVN';        4369 = 'RabbitMQ';     5432 = 'PostgreSQL'
+            5900 = 'VNC';        5985 = 'WinRM';        5986 = 'WinRM-HTTPS'
+            6379 = 'Redis';      6443 = 'Kubernetes';   7070 = 'HTTP-Alt'
+            8080 = 'HTTP-Proxy'; 8443 = 'HTTPS-Alt';    8888 = 'Jupyter'
+            9090 = 'HTTP-Alt2';  9200 = 'Elasticsearch';9300 = 'ES-Cluster'
+            9418 = 'Git';        10250= 'Kubelet';      11211= 'Memcached'
+            27017= 'MongoDB';    27018= 'MongoDB-Shard';49152= 'WinRPC-Dyn'
         }
-        $openPorts = [System.Collections.Generic.List[int]]::new()
-        $services  = [System.Collections.Generic.List[string]]::new()
 
+        # Fire all TCP connects simultaneously using ConnectAsync
+        $tcpClients = @{}
+        $connTasks  = @{}
         foreach ($port in $portDefs.Keys) {
             try {
                 $tcp = New-Object System.Net.Sockets.TcpClient
-                $ar  = $tcp.BeginConnect($ip, $port, $null, $null)
-                if ($ar.AsyncWaitHandle.WaitOne(300, $false) -and $tcp.Connected) {
-                    $openPorts.Add($port)
-                    $services.Add($portDefs[$port])
-                }
-                try { $tcp.Close() } catch {}
+                $tcpClients[$port] = $tcp
+                $connTasks[$port]  = $tcp.ConnectAsync($ip, $port)
             } catch {}
+        }
+
+        # Wait up to 1 second for all port connects
+        $taskArr = @($connTasks.Values | Where-Object { $_ -ne $null })
+        try { [System.Threading.Tasks.Task]::WaitAll($taskArr, 1000) } catch {}
+
+        $openPorts = [System.Collections.Generic.List[int]]::new()
+        $services  = [System.Collections.Generic.List[string]]::new()
+
+        foreach ($port in ($portDefs.Keys | Sort-Object)) {
+            $task = $connTasks[$port]
+            $tcp  = $tcpClients[$port]
+            if ($task -and $task.IsCompleted -and -not $task.IsFaulted -and
+                $tcp -and $tcp.Connected) {
+                $openPorts.Add([int]$port)
+                $services.Add("$port/$($portDefs[$port])")
+            }
+            try { $tcp.Close() } catch {}
         }
 
         # ── OS fingerprint: ports (high confidence) then TTL (low) ────────────
         $osGuess      = 'Unknown'
         $osConfidence = 'low'
 
-        if (445 -in $openPorts -or 3389 -in $openPorts -or 5985 -in $openPorts) {
+        if (445 -in $openPorts -or 3389 -in $openPorts -or 5985 -in $openPorts -or 135 -in $openPorts) {
             $osGuess = 'Windows'; $osConfidence = 'high'
         } elseif (548 -in $openPorts) {
             $osGuess = 'macOS'; $osConfidence = 'high'
