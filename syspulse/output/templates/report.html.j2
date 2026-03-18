@@ -288,6 +288,40 @@ summary:hover{background:#1a2234}
 
   {% if inv %}
 
+  <!-- ── Network Devices ──────────────────────────────────────────────── -->
+  {% if inv.network_hosts %}
+  {% set win_count  = inv.network_hosts | selectattr('os_guess','equalto','Windows')    | list | length %}
+  {% set lin_count  = inv.network_hosts | selectattr('os_guess','in',['Linux','Linux/macOS']) | list | length %}
+  {% set mac_count  = inv.network_hosts | selectattr('os_guess','equalto','macOS')     | list | length %}
+  {% set net_count  = inv.network_hosts | selectattr('os_guess','equalto','Network Device') | list | length %}
+  <h2>Network Devices — {{ inv.network_hosts|length }} Host{{ 's' if inv.network_hosts|length != 1 else '' }} Found</h2>
+  <div class="summary-grid" style="margin-bottom:1rem">
+    <div class="summary-card"><div class="count" style="color:#60a5fa">{{ inv.network_hosts|length }}</div><div class="label">Total</div></div>
+    <div class="summary-card"><div class="count" style="color:#93c5fd">{{ win_count }}</div><div class="label">Windows</div></div>
+    <div class="summary-card"><div class="count" style="color:#86efac">{{ lin_count }}</div><div class="label">Linux</div></div>
+    <div class="summary-card"><div class="count" style="color:#d1d5db">{{ mac_count }}</div><div class="label">macOS</div></div>
+    <div class="summary-card"><div class="count" style="color:#fbbf24">{{ net_count }}</div><div class="label">Network Device</div></div>
+  </div>
+  <table>
+    <thead><tr><th>IP Address</th><th>Hostname</th><th>OS</th><th>Confidence</th><th>MAC Address</th><th>Vendor</th><th>Services Detected</th><th>RTT</th></tr></thead>
+    <tbody>
+    {% for h in inv.network_hosts %}
+    {% set os_color = '#93c5fd' if h.os_guess == 'Windows' else '#86efac' if h.os_guess == 'Linux' else '#d1d5db' if h.os_guess == 'macOS' else '#6ee7b7' if h.os_guess == 'Linux/macOS' else '#fbbf24' if h.os_guess == 'Network Device' else '#6b7280' %}
+    <tr{% if h.is_local %} style="background:#1a2234"{% endif %}>
+      <td style="font-family:monospace;font-weight:600">{{ h.ip }}{% if h.is_local %} <span style="color:#60a5fa;font-size:.7rem">(this machine)</span>{% endif %}</td>
+      <td style="color:#9ca3af;font-size:.82rem">{{ h.hostname or '—' }}</td>
+      <td><span style="font-weight:700;font-size:.8rem;color:{{ os_color }}">{{ h.os_guess }}</span></td>
+      <td style="font-size:.75rem;color:#6b7280">{{ h.os_confidence }}</td>
+      <td style="font-family:monospace;font-size:.75rem;color:#6b7280">{{ h.mac_address or '—' }}</td>
+      <td style="font-size:.8rem;color:#6b7280">{{ h.vendor or '—' }}</td>
+      <td style="font-size:.78rem">{{ h.services|join(', ') or '—' }}</td>
+      <td style="font-size:.78rem;color:#6b7280;white-space:nowrap">{{ (h.response_time_ms|string + ' ms') if h.response_time_ms is not none else '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
   <!-- ── Storage ──────────────────────────────────────────────────────── -->
   {% if inv.disks %}
   <h2>Storage Drives</h2>

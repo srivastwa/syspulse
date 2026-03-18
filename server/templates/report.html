@@ -348,6 +348,44 @@
 
     </div><!-- /profile-grid -->
 
+    <!-- Network Devices -->
+    {% if inv.get('network_hosts') %}
+    {% set nh = inv['network_hosts'] %}
+    {% set win_count = nh | selectattr('os_guess','equalto','Windows') | list | length %}
+    {% set lin_count = nh | selectattr('os_guess','in',['Linux','Linux/macOS']) | list | length %}
+    {% set mac_count = nh | selectattr('os_guess','equalto','macOS') | list | length %}
+    {% set net_count = nh | selectattr('os_guess','equalto','Network Device') | list | length %}
+    <p class="section-heading">Network Devices — {{ nh|length }} Host{{ 's' if nh|length != 1 else '' }} Found</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:.8rem;margin-bottom:1rem;">
+      <div class="profile-card" style="text-align:center;padding:.8rem"><div style="font-size:1.6rem;font-weight:800;color:var(--accent)">{{ nh|length }}</div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Total</div></div>
+      <div class="profile-card" style="text-align:center;padding:.8rem"><div style="font-size:1.6rem;font-weight:800;color:#60a5fa">{{ win_count }}</div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Windows</div></div>
+      <div class="profile-card" style="text-align:center;padding:.8rem"><div style="font-size:1.6rem;font-weight:800;color:#4ade80">{{ lin_count }}</div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Linux</div></div>
+      <div class="profile-card" style="text-align:center;padding:.8rem"><div style="font-size:1.6rem;font-weight:800;color:var(--muted)">{{ mac_count }}</div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">macOS</div></div>
+      <div class="profile-card" style="text-align:center;padding:.8rem"><div style="font-size:1.6rem;font-weight:800;color:var(--medium)">{{ net_count }}</div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Network Device</div></div>
+    </div>
+    <div class="card" style="margin-bottom:1.5rem;">
+      <table>
+        <thead><tr><th>IP Address</th><th>Hostname</th><th>OS</th><th>Confidence</th><th>MAC Address</th><th>Vendor</th><th>Services</th><th>RTT</th></tr></thead>
+        <tbody>
+        {% for h in nh %}
+        {% set og = h.get('os_guess','Unknown') %}
+        {% set os_color = '#60a5fa' if og == 'Windows' else '#4ade80' if og == 'Linux' else 'var(--muted)' if og == 'macOS' else '#6ee7b7' if og == 'Linux/macOS' else 'var(--medium)' if og == 'Network Device' else 'var(--muted)' %}
+        <tr{% if h.get('is_local') %} style="background:var(--surface2)"{% endif %}>
+          <td style="font-family:monospace;font-weight:600">{{ h.get('ip','—') }}{% if h.get('is_local') %} <span style="color:var(--accent);font-size:.7rem">(this machine)</span>{% endif %}</td>
+          <td style="color:var(--muted);font-size:.82rem">{{ h.get('hostname','—') or '—' }}</td>
+          <td><span style="font-weight:700;font-size:.8rem;color:{{ os_color }}">{{ og }}</span></td>
+          <td style="font-size:.75rem;color:var(--muted)">{{ h.get('os_confidence','—') }}</td>
+          <td style="font-family:monospace;font-size:.75rem;color:var(--muted)">{{ h.get('mac_address','—') or '—' }}</td>
+          <td style="font-size:.8rem;color:var(--muted)">{{ h.get('vendor','—') or '—' }}</td>
+          <td style="font-size:.78rem">{{ h.get('services',[])|join(', ') or '—' }}</td>
+          <td style="font-size:.78rem;color:var(--muted);white-space:nowrap">{{ (h['response_time_ms']|string + ' ms') if h.get('response_time_ms') is not none else '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
     <!-- Storage -->
     {% if inv.get('disks') %}
     <p class="section-heading">Storage Drives</p>

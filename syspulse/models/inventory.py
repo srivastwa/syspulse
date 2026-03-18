@@ -117,6 +117,20 @@ class BrowserExtension(BaseModel):
     enabled: bool = True
 
 
+class NetworkHost(BaseModel):
+    ip: str
+    hostname: Optional[str] = None
+    mac_address: Optional[str] = None
+    vendor: Optional[str] = None
+    os_guess: str = "Unknown"
+    os_confidence: str = "low"   # low | medium | high
+    open_ports: List[int] = []
+    services: List[str] = []
+    is_local: bool = False
+    response_time_ms: Optional[int] = None
+    ttl: Optional[int] = None
+
+
 class SystemInventory(BaseModel):
     # Hardware
     cpu: List[CpuInfo] = []
@@ -138,3 +152,5 @@ class SystemInventory(BaseModel):
     user_accounts: List[LocalUser] = []
     # Browsers
     browser_extensions: List[BrowserExtension] = []
+    # Network scan
+    network_hosts: List[NetworkHost] = []

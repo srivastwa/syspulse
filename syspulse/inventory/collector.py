@@ -17,6 +17,7 @@ from syspulse.models.inventory import (
     MemoryModule,
     MotherboardInfo,
     NetworkAdapter,
+    NetworkHost,
     NetworkShare,
     PrinterInfo,
     SoftwareItem,
@@ -29,10 +30,10 @@ from syspulse.utils.subprocess_runner import SubprocessError, run_powershell_scr
 log = get_logger(__name__)
 
 
-def _safe_run(script: str) -> dict[str, Any]:
+def _safe_run(script: str, timeout: int = 30) -> dict[str, Any]:
     """Run a PS script and return the parsed dict; return {} on any error."""
     try:
-        return run_powershell_script(script)
+        return run_powershell_script(script, timeout=timeout)
     except (SubprocessError, FileNotFoundError, Exception) as exc:
         log.warning("inventory script failed", script=script, error=str(exc))
         return {}
@@ -144,11 +145,25 @@ def collect_inventory() -> SystemInventory:
         except Exception:
             pass
 
+    # ── Network scan ─────────────────────────────────────────────────────────
+    # Allow up to 90s: async pings ~3s + port checks ~300ms × ports × live hosts
+    ns = _safe_run("get_network_scan.ps1", timeout=90)
+
+    for h in ns.get("hosts") or []:
+        try:
+            inv.network_hosts.append(NetworkHost(**{
+                k: v for k, v in h.items()
+                if k in NetworkHost.model_fields
+            }))
+        except Exception:
+            pass
+
     log.info(
         "inventory collected",
         software=len(inv.software),
         extensions=len(inv.browser_extensions),
         users=len(inv.user_accounts),
         disks=len(inv.disks),
+        network_hosts=len(inv.network_hosts),
     )
     return inv
