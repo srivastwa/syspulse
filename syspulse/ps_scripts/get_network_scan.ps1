@@ -237,16 +237,33 @@ foreach ($h in $liveHosts) {
     $services  = @($openPorts | ForEach-Object { "$_/$($portDefs[$_])" })
 
     # ── OS fingerprint ─────────────────────────────────────────────────────────
+    # Priority: definitive ports → Apple NIC vendor → SSH+TTL heuristic → TTL-only
     $osGuess      = 'Unknown'
     $osConfidence = 'low'
 
     if (445 -in $openPorts -or 3389 -in $openPorts -or 5985 -in $openPorts -or 135 -in $openPorts) {
+        # Windows-only protocols — unambiguous
         $osGuess = 'Windows'; $osConfidence = 'high'
     } elseif (548 -in $openPorts) {
+        # AFP (Apple Filing Protocol) — macOS-only service
         $osGuess = 'macOS'; $osConfidence = 'high'
+    } elseif ($h.vendor -eq 'Apple') {
+        # Apple NIC OUI beats TTL — macOS or iOS/iPadOS, never Linux
+        $osGuess = 'macOS'
+        $osConfidence = if (22 -in $openPorts) { 'high' } else { 'medium' }
     } elseif (22 -in $openPorts -and 445 -notin $openPorts) {
-        $osGuess = if ($ttl -le 70) { 'Linux' } else { 'Linux/macOS' }
-        $osConfidence = 'medium'
+        # SSH open, non-Apple, non-Windows: distinguish Linux from macOS
+        # macOS also uses TTL=64, so TTL alone is ambiguous; non-Apple vendor → Linux
+        if ($h.vendor -and $h.vendor -ne 'Apple') {
+            # Known hardware vendor with SSH is almost certainly Linux
+            $osGuess = 'Linux'; $osConfidence = 'medium'
+        } elseif ($ttl -le 70) {
+            # TTL 64 range, no MAC/vendor info — Linux is far more common than macOS on a LAN
+            $osGuess = 'Linux'; $osConfidence = 'medium'
+        } else {
+            # TTL outside typical Linux range with SSH — genuine Linux/macOS ambiguity
+            $osGuess = 'Linux/macOS'; $osConfidence = 'low'
+        }
     } elseif ($ttl -gt 100 -and $ttl -le 128) {
         $osGuess = 'Windows'; $osConfidence = 'low'
     } elseif ($ttl -gt 0 -and $ttl -le 70) {
@@ -255,9 +272,7 @@ foreach ($h in $liveHosts) {
         $osGuess = 'Network Device'; $osConfidence = 'medium'
     }
 
-    if ($osGuess -eq 'Unknown' -and $h.vendor -eq 'Apple') {
-        $osGuess = 'macOS'; $osConfidence = 'low'
-    }
+    # NetBIOS name response is definitive proof of Windows
     if ($netbiosName) { $osGuess = 'Windows'; $osConfidence = 'high' }
 
     $hosts.Add(@{
