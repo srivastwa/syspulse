@@ -83,6 +83,7 @@
   <div class="tab-bar">
     <button class="tab-btn active" onclick="switchTab('security',this)">Security Report</button>
     <button class="tab-btn" onclick="switchTab('inventory',this)">System Inventory</button>
+    <button class="tab-btn" onclick="switchTab('network',this)">Network Devices</button>
   </div>
 
   <!-- ══════════════════════════════════════════════════════ -->
@@ -348,56 +349,6 @@
 
     </div><!-- /profile-grid -->
 
-    <!-- Network Devices -->
-    {% if inv.get('network_hosts') %}
-    {% set nh = inv['network_hosts'] %}
-    {% set win_count = nh | selectattr('os_guess','equalto','Windows') | list | length %}
-    {% set lin_count = nh | selectattr('os_guess','in',['Linux','Linux/macOS']) | list | length %}
-    {% set mac_count = nh | selectattr('os_guess','equalto','macOS') | list | length %}
-    {% set net_count = nh | selectattr('os_guess','equalto','Network Device') | list | length %}
-    <p class="section-heading">Network Devices — {{ nh|length }} Host{{ 's' if nh|length != 1 else '' }} Found</p>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:.8rem;margin-bottom:1rem;">
-      <div class="profile-card" style="text-align:center;padding:.8rem"><div style="font-size:1.6rem;font-weight:800;color:var(--accent)">{{ nh|length }}</div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Total</div></div>
-      <div class="profile-card" style="text-align:center;padding:.8rem"><div style="font-size:1.6rem;font-weight:800;color:#60a5fa">{{ win_count }}</div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Windows</div></div>
-      <div class="profile-card" style="text-align:center;padding:.8rem"><div style="font-size:1.6rem;font-weight:800;color:#4ade80">{{ lin_count }}</div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Linux</div></div>
-      <div class="profile-card" style="text-align:center;padding:.8rem"><div style="font-size:1.6rem;font-weight:800;color:var(--muted)">{{ mac_count }}</div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">macOS</div></div>
-      <div class="profile-card" style="text-align:center;padding:.8rem"><div style="font-size:1.6rem;font-weight:800;color:var(--medium)">{{ net_count }}</div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Network Device</div></div>
-    </div>
-    <div class="card" style="margin-bottom:1.5rem;">
-      <table>
-        <thead><tr><th>IP Address</th><th>Hostname / NetBIOS</th><th>OS</th><th>MAC / Vendor</th><th>Open Ports &amp; Services</th><th>RTT</th></tr></thead>
-        <tbody>
-        {% for h in nh %}
-        {% set og = h.get('os_guess','Unknown') %}
-        {% set os_color = '#60a5fa' if og == 'Windows' else '#4ade80' if og == 'Linux' else 'var(--muted)' if og == 'macOS' else '#6ee7b7' if og == 'Linux/macOS' else 'var(--medium)' if og == 'Network Device' else 'var(--muted)' %}
-        <tr{% if h.get('is_local') %} style="background:var(--surface2)"{% endif %}>
-          <td style="font-family:monospace;font-weight:600">{{ h.get('ip','—') }}{% if h.get('is_local') %} <span style="color:var(--accent);font-size:.7rem">(this machine)</span>{% endif %}</td>
-          <td style="font-size:.82rem">
-            {% if h.get('hostname') %}<span style="color:var(--muted)">{{ h['hostname'] }}</span>{% endif %}
-            {% if h.get('netbios_name') and h.get('netbios_name') != h.get('hostname') %}<br><span style="font-family:monospace;font-size:.75rem;color:var(--accent)" title="NetBIOS">{{ h['netbios_name'] }}</span>{% endif %}
-            {% if not h.get('hostname') and not h.get('netbios_name') %}—{% endif %}
-          </td>
-          <td>
-            <span style="font-weight:700;font-size:.8rem;color:{{ os_color }}">{{ og }}</span>
-            <span style="display:block;font-size:.7rem;color:var(--muted)">{{ h.get('os_confidence','') }} confidence</span>
-          </td>
-          <td style="font-size:.78rem;color:var(--muted)">
-            {{ h.get('mac_address','—') or '—' }}<br>
-            {% if h.get('vendor') %}<span style="color:var(--text)">{{ h['vendor'] }}</span>{% endif %}
-          </td>
-          <td>
-            {% for svc in h.get('services',[]) %}
-              <span style="display:inline-block;margin:.1rem .1rem .1rem 0;padding:.15rem .4rem;background:var(--surface2);border:1px solid var(--border);border-radius:3px;font-family:monospace;font-size:.7rem;color:var(--muted);white-space:nowrap">{{ svc }}</span>
-            {% else %}—{% endfor %}
-          </td>
-          <td style="font-size:.78rem;color:var(--muted);white-space:nowrap">{{ (h['response_time_ms']|string + ' ms') if h.get('response_time_ms') is not none else '—' }}</td>
-        </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% endif %}
-
     <!-- Storage -->
     {% if inv.get('disks') %}
     <p class="section-heading">Storage Drives</p>
@@ -650,6 +601,68 @@
   {% endif %}
 
   </div><!-- /tab-inventory -->
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- TAB 3 — NETWORK DEVICES                               -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div id="tab-network" class="tab-pane">
+
+  {% if inventory and inventory.get('network_hosts') %}
+  {% set inv = inventory %}
+  {% set nh = inv['network_hosts'] %}
+  {% set win_count = nh | selectattr('os_guess','equalto','Windows') | list | length %}
+  {% set lin_count = nh | selectattr('os_guess','in',['Linux','Linux/macOS']) | list | length %}
+  {% set mac_count = nh | selectattr('os_guess','equalto','macOS') | list | length %}
+  {% set net_count = nh | selectattr('os_guess','equalto','Network Device') | list | length %}
+  <p class="section-heading">Network Devices — {{ nh|length }} Host{{ 's' if nh|length != 1 else '' }} Found</p>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:.8rem;margin-bottom:1rem;">
+    <div class="profile-card" style="text-align:center;padding:.8rem"><div style="font-size:1.6rem;font-weight:800;color:var(--accent)">{{ nh|length }}</div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Total</div></div>
+    <div class="profile-card" style="text-align:center;padding:.8rem"><div style="font-size:1.6rem;font-weight:800;color:#60a5fa">{{ win_count }}</div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Windows</div></div>
+    <div class="profile-card" style="text-align:center;padding:.8rem"><div style="font-size:1.6rem;font-weight:800;color:#4ade80">{{ lin_count }}</div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Linux</div></div>
+    <div class="profile-card" style="text-align:center;padding:.8rem"><div style="font-size:1.6rem;font-weight:800;color:var(--muted)">{{ mac_count }}</div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">macOS</div></div>
+    <div class="profile-card" style="text-align:center;padding:.8rem"><div style="font-size:1.6rem;font-weight:800;color:var(--medium)">{{ net_count }}</div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Network Device</div></div>
+  </div>
+  <div class="card" style="margin-bottom:1.5rem;">
+    <table>
+      <thead><tr><th>IP Address</th><th>Hostname / NetBIOS</th><th>OS</th><th>MAC / Vendor</th><th>Open Ports &amp; Services</th><th>RTT</th></tr></thead>
+      <tbody>
+      {% for h in nh %}
+      {% set og = h.get('os_guess','Unknown') %}
+      {% set os_color = '#60a5fa' if og == 'Windows' else '#4ade80' if og == 'Linux' else 'var(--muted)' if og == 'macOS' else '#6ee7b7' if og == 'Linux/macOS' else 'var(--medium)' if og == 'Network Device' else 'var(--muted)' %}
+      <tr{% if h.get('is_local') %} style="background:var(--surface2)"{% endif %}>
+        <td style="font-family:monospace;font-weight:600">{{ h.get('ip','—') }}{% if h.get('is_local') %} <span style="color:var(--accent);font-size:.7rem">(this machine)</span>{% endif %}</td>
+        <td style="font-size:.82rem">
+          {% if h.get('hostname') %}<span style="color:var(--muted)">{{ h['hostname'] }}</span>{% endif %}
+          {% if h.get('netbios_name') and h.get('netbios_name') != h.get('hostname') %}<br><span style="font-family:monospace;font-size:.75rem;color:var(--accent)" title="NetBIOS">{{ h['netbios_name'] }}</span>{% endif %}
+          {% if not h.get('hostname') and not h.get('netbios_name') %}—{% endif %}
+        </td>
+        <td>
+          <span style="font-weight:700;font-size:.8rem;color:{{ os_color }}">{{ og }}</span>
+          <span style="display:block;font-size:.7rem;color:var(--muted)">{{ h.get('os_confidence','') }} confidence</span>
+        </td>
+        <td style="font-size:.78rem;color:var(--muted)">
+          {{ h.get('mac_address','—') or '—' }}<br>
+          {% if h.get('vendor') %}<span style="color:var(--text)">{{ h['vendor'] }}</span>{% endif %}
+        </td>
+        <td>
+          {% for svc in h.get('services',[]) %}
+            <span style="display:inline-block;margin:.1rem .1rem .1rem 0;padding:.15rem .4rem;background:var(--surface2);border:1px solid var(--border);border-radius:3px;font-family:monospace;font-size:.7rem;color:var(--muted);white-space:nowrap">{{ svc }}</span>
+          {% else %}—{% endfor %}
+        </td>
+        <td style="font-size:.78rem;color:var(--muted);white-space:nowrap">{{ (h['response_time_ms']|string + ' ms') if h.get('response_time_ms') is not none else '—' }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <h2>No Network Scan Data</h2>
+    <p>Network discovery is only available when a full scan is submitted via Option 2.</p>
+  </div>
+  {% endif %}
+
+  </div><!-- /tab-network -->
 
 </main>
 
