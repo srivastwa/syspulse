@@ -118,6 +118,15 @@ class BrowserExtension(BaseModel):
     enabled: bool = True
 
 
+class SecurityAgent(BaseModel):
+    name: str
+    category: str        # EDR | AV | Proxy | VPN | MDM | PAM | SIEM | DLP | Identity
+    detected_by: str     # service | registry | file | process
+    indicator: str
+    status: str          # running | stopped | installed | detected
+    version: Optional[str] = None
+
+
 class NetworkHost(BaseModel):
     ip: str
     hostname: Optional[str] = None
@@ -154,5 +163,7 @@ class SystemInventory(BaseModel):
     user_accounts: List[LocalUser] = []
     # Browsers
     browser_extensions: List[BrowserExtension] = []
+    # Security agents
+    security_agents: List[SecurityAgent] = []
     # Network scan
     network_hosts: List[NetworkHost] = []

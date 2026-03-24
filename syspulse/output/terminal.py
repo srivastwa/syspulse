@@ -178,6 +178,16 @@ def _inventory_panel(report: AssessmentReport) -> Panel:
     text.append(f"{len(inv.software)} installed packages\n")
     text.append("  Users ", style="dim")
     text.append(f"{len(inv.user_accounts)} local accounts\n")
+    if inv.security_agents:
+        categories = sorted({a.category for a in inv.security_agents})
+        text.append("  Sec   ", style="dim")
+        for cat in categories:
+            agents = [a for a in inv.security_agents if a.category == cat]
+            running = sum(1 for a in agents if a.status == "running")
+            label = f"{cat}({running}/{len(agents)}) "
+            text.append(label, style="green" if running else "yellow")
+        text.append("\n")
+
     if inv.browser_extensions:
         browsers = sorted({e.browser for e in inv.browser_extensions})
         text.append("  Exts  ", style="dim")

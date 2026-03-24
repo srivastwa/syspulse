@@ -20,6 +20,7 @@ from syspulse.models.inventory import (
     NetworkHost,
     NetworkShare,
     PrinterInfo,
+    SecurityAgent,
     SoftwareItem,
     SystemInventory,
     UsbDevice,
@@ -145,12 +146,25 @@ def collect_inventory() -> SystemInventory:
         except Exception:
             pass
 
+    # ── Security agents ──────────────────────────────────────────────────────
+    sa = _safe_run("get_security_agents.ps1", timeout=30)
+
+    for agent in sa.get("security_agents") or []:
+        try:
+            inv.security_agents.append(SecurityAgent(**{
+                k: v for k, v in agent.items()
+                if k in SecurityAgent.model_fields
+            }))
+        except Exception:
+            pass
+
     log.info(
         "inventory collected",
         software=len(inv.software),
         extensions=len(inv.browser_extensions),
         users=len(inv.user_accounts),
         disks=len(inv.disks),
+        security_agents=len(inv.security_agents),
     )
     return inv
 
