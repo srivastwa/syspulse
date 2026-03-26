@@ -197,7 +197,7 @@ def _inventory_panel(report: AssessmentReport) -> Panel:
         text.append("\n")
 
     if inv.network_hosts:
-        text.append(f"  Net   ", style="dim")
+        text.append("  Net   ", style="dim")
         text.append(f"{len(inv.network_hosts)} hosts discovered\n")
         for h in inv.network_hosts[:8]:
             label = h.hostname or h.netbios_name or h.ip
