@@ -106,57 +106,81 @@ function Get-ChromiumExtensions {
         }
 }
 
-# ── Chromium-based browsers ───────────────────────────────────────────────────
-Get-ChromiumExtensions -Browser 'chrome' `
-    -BaseDir "$env:LOCALAPPDATA\Google\Chrome\User Data"
+# ── Enumerate all Windows user profile directories ────────────────────────────
+# Scan the current user first, then every other user profile we can read.
+$userRoots = [System.Collections.Generic.List[hashtable]]::new()
 
-Get-ChromiumExtensions -Browser 'edge' `
-    -BaseDir "$env:LOCALAPPDATA\Microsoft\Edge\User Data"
+# Current user (always accessible)
+$userRoots.Add(@{ User = $env:USERNAME; LocalAppData = $env:LOCALAPPDATA; AppData = $env:APPDATA })
 
-Get-ChromiumExtensions -Browser 'brave' `
-    -BaseDir "$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data"
-
-Get-ChromiumExtensions -Browser 'opera' `
-    -BaseDir "$env:APPDATA\Opera Software\Opera Stable"
-
-Get-ChromiumExtensions -Browser 'vivaldi' `
-    -BaseDir "$env:LOCALAPPDATA\Vivaldi\User Data"
-
-# ── Comet Browser (Arc-like, Chromium-based) ──────────────────────────────────
-# Comet stores data under %LOCALAPPDATA%\Comet
-Get-ChromiumExtensions -Browser 'comet' `
-    -BaseDir "$env:LOCALAPPDATA\Comet\User Data"
-
-# ── Firefox — reads extensions.json from each profile ────────────────────────
-$ffProfiles = "$env:APPDATA\Mozilla\Firefox\Profiles"
-if (Test-Path $ffProfiles) {
-    Get-ChildItem $ffProfiles -Directory -ErrorAction SilentlyContinue | ForEach-Object {
-        $extFile = Join-Path $_.FullName 'extensions.json'
-        if (-not (Test-Path $extFile)) { return }
-        try {
-            $data = Get-Content $extFile -Raw -Encoding UTF8 | ConvertFrom-Json
-            $ffProfileName = try {
-                $profileIni = Get-Content "$env:APPDATA\Mozilla\Firefox\profiles.ini" -Raw -ErrorAction SilentlyContinue
-                $folderName = $_.Name
-                # Try to get Name= from matching [Profile] section in profiles.ini
-                if ($profileIni -and $profileIni -match "(?s)Path=Profiles/$([regex]::Escape($folderName)).*?Name=([^\r\n]+)") {
-                    $Matches[1].Trim()
-                } else { $folderName }
-            } catch { $_.Name }
-
-            foreach ($addon in $data.addons) {
-                if ($addon.type -ne 'extension') { continue }
-                $extensions.Add(@{
-                    browser      = 'firefox'
-                    profile      = $ffProfileName
-                    extension_id = $addon.id
-                    name         = $addon.defaultLocale.name
-                    version      = $addon.version
-                    description  = $addon.defaultLocale.description
-                    enabled      = [bool]$addon.active
-                })
+# Other user accounts — iterate C:\Users\*
+$usersDir = "$env:SystemDrive\Users"
+if (Test-Path $usersDir) {
+    Get-ChildItem $usersDir -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -ne $env:USERNAME -and $_.Name -ne 'Public' -and $_.Name -ne 'Default' -and $_.Name -ne 'Default User' -and $_.Name -ne 'All Users' } |
+        ForEach-Object {
+            $otherLocal = Join-Path $_.FullName 'AppData\Local'
+            $otherRoaming = Join-Path $_.FullName 'AppData\Roaming'
+            if ((Test-Path $otherLocal) -or (Test-Path $otherRoaming)) {
+                $userRoots.Add(@{ User = $_.Name; LocalAppData = $otherLocal; AppData = $otherRoaming })
             }
-        } catch {}
+        }
+}
+
+# ── Chromium-based browsers ───────────────────────────────────────────────────
+# Browser definitions: name → relative path under LocalAppData or AppData
+$chromiumBrowsers = @(
+    @{ Browser = 'chrome';  RelPath = 'Google\Chrome\User Data';               Root = 'local' }
+    @{ Browser = 'edge';    RelPath = 'Microsoft\Edge\User Data';              Root = 'local' }
+    @{ Browser = 'brave';   RelPath = 'BraveSoftware\Brave-Browser\User Data'; Root = 'local' }
+    @{ Browser = 'opera';   RelPath = 'Opera Software\Opera Stable';           Root = 'roaming' }
+    @{ Browser = 'vivaldi'; RelPath = 'Vivaldi\User Data';                     Root = 'local' }
+    @{ Browser = 'comet';   RelPath = 'Comet\User Data';                       Root = 'local' }
+)
+
+foreach ($ur in $userRoots) {
+    $userName = $ur.User
+
+    foreach ($bDef in $chromiumBrowsers) {
+        $parentDir = if ($bDef.Root -eq 'roaming') { $ur.AppData } else { $ur.LocalAppData }
+        $baseDir = Join-Path $parentDir $bDef.RelPath
+        $browserLabel = if ($userName -ne $env:USERNAME) { "$($bDef.Browser) ($userName)" } else { $bDef.Browser }
+        Get-ChromiumExtensions -Browser $browserLabel -BaseDir $baseDir
+    }
+
+    # ── Firefox — reads extensions.json from each profile ────────────────────
+    $ffProfiles = Join-Path $ur.AppData 'Mozilla\Firefox\Profiles'
+    $ffIniPath  = Join-Path $ur.AppData 'Mozilla\Firefox\profiles.ini'
+    $browserLabel = if ($userName -ne $env:USERNAME) { "firefox ($userName)" } else { 'firefox' }
+
+    if (Test-Path $ffProfiles) {
+        Get-ChildItem $ffProfiles -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+            $extFile = Join-Path $_.FullName 'extensions.json'
+            if (-not (Test-Path $extFile)) { return }
+            try {
+                $data = Get-Content $extFile -Raw -Encoding UTF8 | ConvertFrom-Json
+                $ffProfileName = try {
+                    $profileIni = Get-Content $ffIniPath -Raw -ErrorAction SilentlyContinue
+                    $folderName = $_.Name
+                    if ($profileIni -and $profileIni -match "(?s)Path=Profiles/$([regex]::Escape($folderName)).*?Name=([^\r\n]+)") {
+                        $Matches[1].Trim()
+                    } else { $folderName }
+                } catch { $_.Name }
+
+                foreach ($addon in $data.addons) {
+                    if ($addon.type -ne 'extension') { continue }
+                    $extensions.Add(@{
+                        browser      = $browserLabel
+                        profile      = $ffProfileName
+                        extension_id = $addon.id
+                        name         = $addon.defaultLocale.name
+                        version      = $addon.version
+                        description  = $addon.defaultLocale.description
+                        enabled      = [bool]$addon.active
+                    })
+                }
+            } catch {}
+        }
     }
 }
 
